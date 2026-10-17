@@ -1,0 +1,16 @@
+# Virtual environment created on this PC. Recreate it with python -m venv.
+.venv/
+venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Test and tool caches
+.pytest_cache/
+.mypy_cache/
+
+# Local database and runtime files.
+instance/
+*.db

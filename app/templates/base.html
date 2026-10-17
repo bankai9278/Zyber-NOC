@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Network Monitoring Dashboard{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="site-title" href="{{ url_for('devices.inventory') }}">Network Monitoring</a>
+      <nav aria-label="Primary">
+        <a href="{{ url_for('devices.inventory') }}" {% if request.endpoint == 'devices.inventory' %}aria-current="page"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('devices.new_device') }}" {% if request.endpoint == 'devices.new_device' %}aria-current="page"{% endif %}>Add device</a>
+      </nav>
+    </div>
+  </header>
+  <main id="content">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li role="status">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ device.name }}{% endblock %}
+
+{% block content %}
+  <p class="back-link"><a href="{{ url_for('devices.inventory') }}">Back to dashboard</a></p>
+  <div class="page-heading">
+    <div>
+      <h1>{{ device.name }}</h1>
+      <p class="lede"><span class="status status-{{ device.status }}">{{ device.status_label }}</span></p>
+    </div>
+    <div class="row-actions">
+      <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" data-loading-label="Checking">Check now</button>
+      </form>
+      <a class="button button-danger" href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete device</a>
+    </div>
+  </div>
+
+  <dl class="details">
+    <div>
+      <dt>IP address</dt>
+      <dd>{{ device.ip_address }}</dd>
+    </div>
+    <div>
+      <dt>Device type</dt>
+      <dd>{{ device.device_type }}</dd>
+    </div>
+    <div>
+      <dt>Description</dt>
+      <dd>{{ device.description or "No description" }}</dd>
+    </div>
+    <div>
+      <dt>Response time</dt>
+      <dd>{{ device.response_label }}</dd>
+    </div>
+    <div>
+      <dt>Last checked</dt>
+      <dd>{{ device.checked_label }}</dd>
+    </div>
+    <div>
+      <dt>Added</dt>
+      <dd>{{ device.created_at }}</dd>
+    </div>
+  </dl>
+
+  <section aria-labelledby="history-heading">
+    <h2 id="history-heading">Monitoring history</h2>
+    {% if history_hidden %}
+      <p class="status-note">Showing the {{ history|length }} most recent checks. {{ history_hidden }} older checks remain stored.</p>
+    {% endif %}
+    {% if history %}
+      <div class="table-wrap">
+        <table>
+          <caption>Recent monitoring results for {{ device.name }}, oldest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Status</th>
+              <th scope="col">Response time</th>
+              <th scope="col">Error details</th>
+              <th scope="col">Recorded</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for result in history %}
+              <tr>
+                <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ result.status }}">{{ result.status_label }}</span></td>
+                <td data-label="Response time"><span class="visually-hidden">Response time: </span>{{ result.response_label }}</td>
+                <td data-label="Error details"><span class="visually-hidden">Error details: </span>{{ result.error_details or "None" }}</td>
+                <td data-label="Recorded"><span class="visually-hidden">Recorded: </span>{{ result.checked_label }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>No monitoring results yet. Use Check now to ping this saved device.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Delete {{ device.name }}{% endblock %}
+
+{% block content %}
+  <p class="back-link"><a href="{{ url_for('devices.device_detail', device_id=device.id) }}">Back to {{ device.name }}</a></p>
+  <h1>Delete {{ device.name }}?</h1>
+  {% if error %}
+    <p class="error" id="form-error" role="alert">{{ error }}</p>
+  {% endif %}
+  <p class="lede">
+    This removes {{ device.ip_address }} from the inventory.
+    Monitoring history for this device is removed as well.
+    This cannot be undone.
+  </p>
+  <form method="post" action="{{ url_for('devices.remove_device', device_id=device.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="confirm" value="yes">
+    <div class="actions">
+      <button class="danger" type="submit" data-loading-label="Deleting device">Delete device</button>
+      <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+{% endblock %}

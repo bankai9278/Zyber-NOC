@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <div class="page-heading">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="lede">Check now pings one saved device. Check all pings up to 20 saved devices, two at a time.</p>
+    </div>
+    <a class="button" href="{{ url_for('devices.new_device') }}">Add device</a>
+  </div>
+
+  <section aria-labelledby="summary-heading">
+    <h2 id="summary-heading" class="section-title">Summary</h2>
+    <ul class="summary">
+      <li>
+        <p class="summary-value" data-count="total">{{ summary.total }}</p>
+        <p class="summary-label">Total devices</p>
+      </li>
+      <li>
+        <p class="summary-value" data-count="online">{{ summary.online }}</p>
+        <p class="summary-label">Online</p>
+      </li>
+      <li>
+        <p class="summary-value" data-count="offline">{{ summary.offline }}</p>
+        <p class="summary-label">Offline</p>
+      </li>
+      <li>
+        <p class="summary-value" data-count="unknown">{{ summary.unknown }}</p>
+        <p class="summary-label">Unknown</p>
+      </li>
+      <li>
+        <p class="summary-value" data-count="error">{{ summary.error }}</p>
+        <p class="summary-label">Error</p>
+      </li>
+    </ul>
+  </section>
+
+  <section
+    id="device-panel"
+    aria-labelledby="devices-heading"
+    data-dashboard
+    data-refresh-url="{{ url_for('devices.dashboard_data') }}"
+    data-csrf-token="{{ csrf_token }}"
+  >
+    <div class="section-heading">
+      <h2 id="devices-heading">Devices</h2>
+      <div class="row-actions">
+        {% if devices %}
+          <form class="inline-form" method="post" action="{{ url_for('devices.check_all_devices') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" data-loading-label="Checking devices">Check all</button>
+          </form>
+        {% endif %}
+        <button type="button" id="refresh-status">Refresh status</button>
+      </div>
+    </div>
+    <p id="dashboard-status" class="status-note" aria-live="polite">Showing saved monitoring results.</p>
+    <p id="dashboard-error" class="error" role="alert" hidden></p>
+
+    <p id="dashboard-empty" {% if devices %}hidden{% endif %}>No devices yet. Add a device to start the inventory.</p>
+
+    <div class="table-wrap" {% if not devices %}hidden{% endif %} id="device-table-wrap">
+      <table id="device-table">
+        <caption>Authorized devices and their latest saved check</caption>
+        <thead>
+          <tr>
+            <th scope="col">Device name</th>
+            <th scope="col">IP address</th>
+            <th scope="col">Device type</th>
+            <th scope="col">Status</th>
+            <th scope="col">Response time</th>
+            <th scope="col">Last checked</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for device in devices %}
+            <tr>
+              <td data-label="Device name">
+                <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a>
+                <span class="secondary">{{ device.description or "No description" }}</span>
+              </td>
+              <td data-label="IP address"><span class="visually-hidden">IP address: </span>{{ device.ip_address }}</td>
+              <td data-label="Device type"><span class="visually-hidden">Device type: </span>{{ device.device_type }}</td>
+              <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ device.status }}">{{ device.status_label }}</span></td>
+              <td data-label="Response time"><span class="visually-hidden">Response time: </span>{{ device.response_label }}</td>
+              <td data-label="Last checked"><span class="visually-hidden">Last checked: </span>{{ device.checked_label }}</td>
+              <td data-label="Actions">
+                <div class="row-actions">
+                  <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <input type="hidden" name="next" value="dashboard">
+                    <button type="submit" data-loading-label="Checking">Check now</button>
+                  </form>
+                  <a href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete</a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
