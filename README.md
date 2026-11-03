@@ -206,6 +206,7 @@ When demo mode is on:
 - Adding, editing, deleting, Check now, Check port, and Check all return a `403` page that says the demo is read-only. Any `POST`, `PUT`, `PATCH`, or `DELETE` is refused the same way. The scheduler never starts.
 - The app does not open `instance/monitor.db`. On each start it rebuilds `instance/demo.db` from `app/demo.py`: eight made-up devices named `Sample ...` on documentation addresses (`192.0.2.x`, `198.51.100.x`, `203.0.113.x`) with 90 days of made-up checks. The dates follow the time the app started, so reloading the web app refreshes them.
 - Every page shows a banner saying the data is sample data, not a live reading. `GET /api/dashboard` adds `"sample_data": true`.
+- A short three-step "How it works" card opens the first time a browser visits. It can be closed, and the **How it works** button in the banner opens it again. Its slide-in animation is off when the system asks for reduced motion. Normal mode does not load it.
 
 To try it on this PC:
 

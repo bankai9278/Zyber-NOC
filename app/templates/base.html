@@ -32,7 +32,8 @@
     </div>
   </header>
   {% if demo_mode %}
-  <p class="demo-banner" role="note"><strong>Read-only demo.</strong> Every device, status, and number here is sample data, not a live reading. Adding, editing, deleting, and checks are turned off.</p>
+  <p class="demo-banner" role="note"><strong>Read-only demo.</strong> Every device, status, and number here is sample data, not a live reading. Adding, editing, deleting, and checks are turned off. <button type="button" class="demo-tour-button" data-tour="open" hidden>How it works</button></p>
+  {% include "_tour.html" %}
   {% endif %}
   <main id="content">
     {% with messages = get_flashed_messages() %}
@@ -76,5 +77,8 @@
   </footer>
   {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/premium.js') }}"></script>
+  {% if demo_mode %}
+  <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
+  {% endif %}
 </body>
 </html>

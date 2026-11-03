@@ -1,0 +1,29 @@
+{# Demo-only "How it works" tour. tour.js shows it once per browser and the
+   banner button reopens it. Hidden until the script runs, so it never
+   appears without a way to close it. #}
+<section class="tour" id="tour" role="dialog" aria-labelledby="tour-title" aria-describedby="tour-steps" hidden>
+  <div class="tour-head">
+    <p class="tour-kicker mono">how it works · <span id="tour-count">1</span>/3</p>
+    <button type="button" class="tour-close" data-tour="close" aria-label="Close the tour">&times;</button>
+  </div>
+  <h2 class="tour-title" id="tour-title" tabindex="-1">How Zyber NOC works</h2>
+  <ol class="tour-steps" id="tour-steps">
+    <li class="tour-step" data-step="1">
+      <h3>This is sample data</h3>
+      <p>You are looking at the real app in read-only demo mode. The eight devices and 90 days of checks are made up, on documentation addresses. Nothing here pings a real device.</p>
+    </li>
+    <li class="tour-step" data-step="2" hidden>
+      <h3>One check, saved for good</h3>
+      <p>On a local PC, each check runs Windows <code>ping</code> five times against one saved device. The result goes into SQLite, and uptime, incidents, and the status bars are worked out only from those saved rows.</p>
+    </li>
+    <li class="tour-step" data-step="3" hidden>
+      <h3>Where to look</h3>
+      <p>The <a href="{{ url_for('devices.inventory') }}">Dashboard</a> has counts and recent incidents. Open a device for its 90-day bar and latency chart. <a href="{{ url_for('devices.topology') }}">Topology</a> shows why the floor 2 access point is unreachable: its parent switch is down.</p>
+    </li>
+  </ol>
+  <div class="tour-actions">
+    <button type="button" data-tour="back" disabled>Back</button>
+    <button type="button" class="primary" data-tour="next">Next</button>
+    <button type="button" class="primary" data-tour="done" hidden>Got it</button>
+  </div>
+</section>

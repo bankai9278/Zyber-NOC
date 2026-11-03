@@ -420,3 +420,33 @@ html.is-scrolled .page-home .header-inner {
   text-align: center;
 }
 .demo-banner strong { color: var(--error); font-family: var(--font-mono); font-weight: 600; }
+
+/* Demo-only "How it works" tour (tour.js). A floating card, not a modal. */
+.demo-tour-button { margin-left: .5rem; padding: .15rem .6rem; font-size: .8rem; }
+.tour {
+  position: fixed; right: 1rem; bottom: 1rem; z-index: 60;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem); overflow-y: auto;
+  padding: 1rem 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--button-border-hover);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(62,240,165,.12);
+  color: var(--text);
+}
+.tour[hidden] { display: none; }
+.tour-animate { animation: tour-in .25s var(--ease) both; }
+@keyframes tour-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.tour-head { display: flex; align-items: center; justify-content: space-between; }
+.tour-kicker { margin: 0; color: var(--accent); font-size: .8rem; }
+.tour-close { padding: 0 .5rem; font-size: 1.1rem; line-height: 1.6; }
+.tour-title { margin: .35rem 0 .5rem; font-size: 1rem; color: var(--heading); }
+.tour-title:focus { outline: none; }
+.tour-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tour-steps { margin: 0; padding: 0; list-style: none; }
+.tour-step h3 { margin: 0 0 .35rem; font-size: .9rem; color: var(--accent); font-family: var(--font-mono); font-weight: 600; }
+.tour-step p { margin: 0; font-size: .875rem; line-height: 1.55; }
+.tour-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .9rem; }
+@media (prefers-reduced-motion: reduce) {
+  .tour-animate { animation: none; }
+}
