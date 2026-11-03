@@ -6,22 +6,36 @@
   <p class="back-link"><a href="{{ url_for('devices.inventory') }}">Back to dashboard</a></p>
   <div class="page-heading">
     <div>
+      <p class="eyebrow">Network monitoring dashboard</p>
       <h1>{{ device.name }}</h1>
-      <p class="lede"><span class="status status-{{ device.status }}">{{ device.status_label }}</span></p>
+      <p class="lede"><span class="status status-{{ device.status_class }}">{{ device.status_label }}</span></p>
     </div>
+    {% if not demo_mode %}
     <div class="row-actions">
       <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" data-loading-label="Checking">Check now</button>
       </form>
+      <form class="inline-form" method="post" action="{{ url_for('devices.check_device_port', device_id=device.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="visually-hidden" for="port">TCP port</label>
+        <select id="port" name="port">
+          {% for port in tcp_ports %}
+            <option value="{{ port }}">{{ port }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" data-loading-label="Checking port">Check port</button>
+      </form>
+      <a class="button" href="{{ url_for('devices.edit_device', device_id=device.id) }}">Edit</a>
       <a class="button button-danger" href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete device</a>
     </div>
+    {% endif %}
   </div>
 
   <dl class="details">
     <div>
       <dt>IP address</dt>
-      <dd>{{ device.ip_address }}</dd>
+      <dd class="mono">{{ device.ip_address }}</dd>
     </div>
     <div>
       <dt>Device type</dt>
@@ -32,8 +46,28 @@
       <dd>{{ device.description or "No description" }}</dd>
     </div>
     <div>
+      <dt>Location</dt>
+      <dd>{{ device.location_label }}</dd>
+    </div>
+    <div>
+      <dt>VLAN</dt>
+      <dd>{{ device.vlan_label }}</dd>
+    </div>
+    <div>
+      <dt>Parent device</dt>
+      <dd>{{ device.parent_label }}</dd>
+    </div>
+    <div>
       <dt>Response time</dt>
-      <dd>{{ device.response_label }}</dd>
+      <dd class="mono">{{ device.response_label }}</dd>
+    </div>
+    <div>
+      <dt>Uptime</dt>
+      <dd>{{ device.uptime_label }}</dd>
+    </div>
+    <div>
+      <dt>Average response</dt>
+      <dd class="mono">{{ device.average_response_label }}</dd>
     </div>
     <div>
       <dt>Last checked</dt>
@@ -41,12 +75,59 @@
     </div>
     <div>
       <dt>Added</dt>
-      <dd>{{ device.created_at }}</dd>
+      <dd>{{ device.created_label }}</dd>
     </div>
   </dl>
 
-  <section aria-labelledby="history-heading">
-    <h2 id="history-heading">Monitoring history</h2>
+  <ul class="summary detail-stats">
+    <li class="stat-jitter">
+      <p class="summary-label">Jitter</p>
+      <p class="summary-value">{{ device.jitter_label }}</p>
+    </li>
+    <li class="stat-loss">
+      <p class="summary-label">Packet loss</p>
+      <p class="summary-value">{{ device.packet_loss_label }}</p>
+    </li>
+  </ul>
+
+  <section class="panel" aria-labelledby="status-history-heading">
+    <h2 id="status-history-heading">90-day status</h2>
+    <div class="history-bar">
+      {% for block in history_bar.blocks %}
+        <span class="history-block history-{{ block.kind }}" title="{{ block.title }}"></span>
+      {% endfor %}
+    </div>
+    <div class="history-scale">
+      <span>90 days ago</span>
+      <span class="history-uptime">{{ history_bar.uptime_label }}</span>
+      <span>Today</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="chart-heading">
+    <h2 id="chart-heading">Response time</h2>
+    {% if chart %}
+      <svg class="latency-chart" role="img" aria-label="Response times from the last 20 saved checks" viewBox="0 0 {{ chart.width }} {{ chart.height }}">
+        <title>Median response time, with the minimum to maximum band</title>
+        {% for band in chart.bands %}
+          <polygon points="{{ band }}" fill="#6e9fff" fill-opacity="0.18" stroke="none"></polygon>
+        {% endfor %}
+        <polyline points="{{ chart.points }}" fill="none" stroke="#6e9fff" stroke-width="2"></polyline>
+        {% for point in chart.dots %}
+          <circle cx="{{ point.x }}" cy="{{ point.y }}" r="3.5" fill="{{ point.color }}"></circle>
+        {% endfor %}
+      </svg>
+      <p class="status-note">{{ chart.count }} measured response times. Highest in this chart: {{ chart.highest_ms }} ms.</p>
+    {% else %}
+      <p>No response times to chart.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="history-heading">
+    <div class="section-heading">
+      <h2 id="history-heading">Monitoring history</h2>
+      <a href="{{ url_for('devices.export_history', device_id=device.id) }}">Download CSV</a>
+    </div>
     {% if history_hidden %}
       <p class="status-note">Showing the {{ history|length }} most recent checks. {{ history_hidden }} older checks remain stored.</p>
     {% endif %}
@@ -56,6 +137,7 @@
           <caption>Recent monitoring results for {{ device.name }}, oldest first</caption>
           <thead>
             <tr>
+              <th scope="col">Check</th>
               <th scope="col">Status</th>
               <th scope="col">Response time</th>
               <th scope="col">Error details</th>
@@ -65,8 +147,9 @@
           <tbody>
             {% for result in history %}
               <tr>
+                <td data-label="Check"><span class="visually-hidden">Check: </span>{{ result.check_label }}</td>
                 <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ result.status }}">{{ result.status_label }}</span></td>
-                <td data-label="Response time"><span class="visually-hidden">Response time: </span>{{ result.response_label }}</td>
+                <td data-label="Response time"><span class="visually-hidden">Response time: </span><span class="mono">{{ result.response_label }}</span></td>
                 <td data-label="Error details"><span class="visually-hidden">Error details: </span>{{ result.error_details or "None" }}</td>
                 <td data-label="Recorded"><span class="visually-hidden">Recorded: </span>{{ result.checked_label }}</td>
               </tr>

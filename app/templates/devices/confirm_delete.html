@@ -4,6 +4,7 @@
 
 {% block content %}
   <p class="back-link"><a href="{{ url_for('devices.device_detail', device_id=device.id) }}">Back to {{ device.name }}</a></p>
+  <p class="eyebrow">Network monitoring dashboard</p>
   <h1>Delete {{ device.name }}?</h1>
   {% if error %}
     <p class="error" id="form-error" role="alert">{{ error }}</p>

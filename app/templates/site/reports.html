@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% from "site/_icons.html" import icon %}
+
+{% block title %}Reports · Zyber NOC{% endblock %}
+{% block body_class %}page-site page-reports{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="reports-title">
+  <div class="hero-mesh hero-mesh-soft" aria-hidden="true"></div>
+  <div class="wrap">
+    <p class="kicker" data-reveal>// reliability report</p>
+    <h1 id="reports-title" class="page-hero-title" data-reveal>Reports</h1>
+    <p class="hero-lede" data-reveal>Uptime, failures and recovery for every saved device, calculated from saved results only. Nothing on this page is estimated.{% if demo_mode %} In this demo, the saved results are sample data, not live readings.{% endif %}</p>
+  </div>
+</section>
+
+<div class="wrap report-body">
+  {% if not devices %}
+    <section class="panel"><p>No devices yet. Add a device and run a check to build a report.</p></section>
+  {% else %}
+    <section class="report-overview" aria-label="All devices">
+      <figure class="donut-card glow-card" data-reveal>
+        {% set pct = totals.online_pct %}
+        {% set circ = 314.16 %}
+        <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="{{ totals.online }} of {{ totals.checks }} saved checks were online">
+          <circle class="donut-track" cx="60" cy="60" r="50"/>
+          {% if totals.checks %}
+            <circle class="donut-fail" cx="60" cy="60" r="50" stroke-dasharray="{{ circ }} {{ circ }}"/>
+            <circle class="donut-ok" cx="60" cy="60" r="50" stroke-dasharray="{{ '%.2f' % (circ * pct / 100) }} {{ circ }}"/>
+          {% endif %}
+          <text x="60" y="58" class="donut-num">{% if totals.uptime is not none %}{{ totals.uptime }}%{% else %}-{% endif %}</text>
+          <text x="60" y="76" class="donut-cap">online</text>
+        </svg>
+        <figcaption>
+          <p class="donut-title">All saved checks</p>
+          <ul class="donut-legend">
+            <li><span class="sw sw-online"></span>{{ totals.online }} online</li>
+            <li><span class="sw sw-offline"></span>{{ totals.failed }} not online</li>
+          </ul>
+        </figcaption>
+      </figure>
+      <ul class="stat-row stat-row-compact">
+        <li class="glow-card" data-reveal><p class="stat-num mono"><span data-counter="{{ totals.checks }}">{{ totals.checks }}</span></p><p class="stat-cap">checks recorded</p></li>
+        <li class="glow-card" data-reveal><p class="stat-num mono">{% if totals.average_ms is not none %}<span data-counter="{{ totals.average_ms }}">{{ totals.average_ms }}</span> ms{% else %}Not measured{% endif %}</p><p class="stat-cap">average measured response</p></li>
+        <li class="glow-card" data-reveal><p class="stat-num mono"><span data-counter="{{ totals.incidents }}">{{ totals.incidents }}</span></p><p class="stat-cap">{{ "incident" if totals.incidents == 1 else "incidents" }} &middot; {{ totals.ongoing }} ongoing</p></li>
+        <li class="glow-card" data-reveal><p class="stat-num stat-date mono">{{ totals.since_label or "No checks yet" }}</p><p class="stat-cap">first saved check</p></li>
+      </ul>
+    </section>
+
+    <h2 class="section-title-lg section-title-sm" data-reveal>Per device</h2>
+    {% for device in devices %}
+      <article class="report-card glow-card" data-reveal>
+        <header class="report-head">
+          <div>
+            <h3><a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a></h3>
+            <p class="mono report-ip">{{ device.ip_address }} &middot; {{ device.device_type }}</p>
+          </div>
+          <span class="status status-{{ device.status_class }}">{{ device.status_label }}</span>
+        </header>
+        <dl class="report-metrics">
+          <div><dt>Uptime</dt><dd class="mono">{% if device.uptime_value is not none %}{{ device.uptime_value }}%{% else %}No data{% endif %}</dd></div>
+          <div><dt>Checks</dt><dd class="mono">{{ device.check_count }} <small>({{ device.ping_count }} ping, {{ device.tcp_count }} TCP)</small></dd></div>
+          <div><dt>Not online</dt><dd class="mono">{{ device.failed_count }}</dd></div>
+          <div><dt>Response min / max</dt><dd class="mono">{% if device.min_ms is not none %}{{ device.min_ms }} / {{ device.max_ms }} ms{% else %}Not measured{% endif %}</dd></div>
+          <div><dt>Incidents</dt><dd class="mono">{{ device.incident_count }}{% if device.ongoing_count %} <small>({{ device.ongoing_count }} ongoing)</small>{% endif %}</dd></div>
+          <div><dt>Mean time to recover</dt><dd>{{ device.mttr_label }}</dd></div>
+          <div><dt>First check</dt><dd>{{ device.first_check_label }}</dd></div>
+          <div><dt>Last check</dt><dd>{{ device.checked_label }}</dd></div>
+        </dl>
+        {% if device.history_bar %}
+          <div class="report-bar">
+            <div class="history-bar">
+              {% for block in device.history_bar.blocks %}
+                <span class="history-block history-{{ block.kind }}" title="{{ block.title }}"></span>
+              {% endfor %}
+            </div>
+            <div class="history-scale"><span>{{ report_days }} days ago</span><span class="history-uptime">{{ device.history_bar.uptime_label }}</span><span>Today</span></div>
+          </div>
+        {% endif %}
+      </article>
+    {% endfor %}
+    <p class="status-note report-note">Uptime is the share of saved checks with status online. Mean time to recover averages outages that have a saved return to online.</p>
+  {% endif %}
+</div>
+{% endblock %}

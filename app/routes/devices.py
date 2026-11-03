@@ -1,9 +1,12 @@
 """Pages for viewing, adding, and deleting authorized devices."""
 
+import csv
 import threading
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
+from io import StringIO
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 
 from app.database import (
     DatabaseError,
@@ -13,50 +16,86 @@ from app.database import (
     get_device,
     get_device_overview,
     get_monitoring_history,
+    list_devices,
+    list_incidents,
+    list_monitoring_window,
+    list_status_changes,
+    parse_device_filter,
     save_monitoring_result,
+    summarize_monitoring_results,
+    update_device,
 )
 from app.monitoring import (
+    ALLOWED_TCP_PORTS,
     check_authorized_device,
+    check_authorized_tcp_port,
     checked_recently,
     run_authorized_checks,
     select_due_devices,
 )
-from app.presentation import present_device, present_history, present_overview
+from app.presentation import (
+    group_devices,
+    latency_chart,
+    ping_stat_labels,
+    present_device,
+    present_history,
+    present_incidents,
+    present_overview,
+    present_status_changes,
+    status_history,
+    topology_map,
+    toronto_window,
+    TORONTO,
+)
 
 bp = Blueprint("devices", __name__)
 _check_lock = threading.Lock()
-
-
-@bp.get("/")
-def home():
-    """Open the inventory. The health check stays at /health."""
-    return redirect(url_for("devices.inventory"))
 
 
 @bp.get("/devices")
 def inventory():
     """Show summary counts and the latest saved status for every device."""
     try:
-        overview = present_overview(get_device_overview(_database_path()))
+        overview, changes, device_filter = _dashboard_context()
     except DatabaseError:
         return _database_page("The device inventory could not be loaded.")
-    return render_template("devices/dashboard.html", **overview)
+    return render_template(
+        "devices/dashboard.html",
+        status_changes=changes,
+        device_filter=device_filter,
+        **overview,
+    )
 
 
 @bp.get("/api/dashboard")
 def dashboard_data():
     """Return the same dashboard data the page rendered, as JSON."""
     try:
-        overview = present_overview(get_device_overview(_database_path()))
+        overview, _changes, _device_filter = _dashboard_context()
     except DatabaseError:
         return {"error": "The device inventory could not be loaded."}, 500
+    if current_app.config.get("DEMO_MODE"):
+        overview["sample_data"] = True
     return overview
+
+
+@bp.get("/topology")
+def topology():
+    """Draw saved devices as a parent and child tree."""
+    try:
+        overview = present_overview(get_device_overview(_database_path()))
+    except DatabaseError:
+        return _database_page("The topology could not be loaded.")
+    return render_template(
+        "devices/topology.html",
+        topology=topology_map(overview["devices"]),
+    )
 
 
 @bp.get("/devices/new")
 def new_device():
     """Show the empty device form."""
-    return render_template("devices/form.html", device=_blank_form(), error=None)
+    return _render_device_form(_blank_form(), None)
 
 
 @bp.post("/devices")
@@ -70,12 +109,44 @@ def create_device():
             ip_address=form["ip_address"],
             device_type=form["device_type"],
             description=form["description"],
+            location=form["location"],
+            vlan=form["vlan"],
+            parent_id=form["parent_id"],
         )
     except ValidationError as exc:
-        return render_template("devices/form.html", device=form, error=str(exc)), 400
+        return _render_device_form(form, str(exc), status_code=400)
     except DatabaseError:
         return _database_page("The device could not be saved.")
     return redirect(url_for("devices.device_detail", device_id=device["id"]))
+
+
+@bp.route("/devices/<int:device_id>/edit", methods=["GET", "POST"])
+def edit_device(device_id):
+    """Update a saved device without changing its monitoring history."""
+    stored = _find_device(device_id)
+    if request.method == "GET":
+        return _render_device_form(_form_from_device(stored), None, device_id=device_id)
+    form = _submitted_form()
+    try:
+        update_device(
+            _database_path(),
+            device_id,
+            name=form["name"],
+            ip_address=form["ip_address"],
+            device_type=form["device_type"],
+            description=form["description"],
+            location=form["location"],
+            vlan=form["vlan"],
+            parent_id=form["parent_id"],
+        )
+    except ValidationError as exc:
+        if str(exc) == "Device does not exist.":
+            abort(404)
+        return _render_device_form(form, str(exc), device_id=device_id, status_code=400)
+    except DatabaseError:
+        return _database_page("The device could not be saved.")
+    flash("Device updated.")
+    return redirect(url_for("devices.device_detail", device_id=device_id))
 
 
 @bp.get("/devices/<int:device_id>")
@@ -84,14 +155,18 @@ def device_detail(device_id):
     device = _find_device(device_id)
     try:
         stored_history = get_monitoring_history(_database_path(), device["id"])
+        history_bar = _history_bars([device["id"]], 90)[device["id"]]
     except (ValidationError, DatabaseError):
         return _database_page("The monitoring history could not be loaded.")
     history_limit = current_app.config["HISTORY_LIMIT"]
-    history = present_history(stored_history[-history_limit:])
+    visible_history = stored_history[-history_limit:]
+    history = present_history(visible_history)
     history_hidden = max(0, len(stored_history) - len(history))
     latest = history[-1] if history else None
+    statistics = summarize_monitoring_results(stored_history)
+    ping_labels = ping_stat_labels(stored_history)
     if latest is None:
-        device = present_device({**device, "status": "unknown"})
+        device = present_device({**device, "status": "unknown", **statistics, **ping_labels})
     else:
         device = present_device(
             {
@@ -99,6 +174,8 @@ def device_detail(device_id):
                 "status": latest["status"],
                 "response_time_ms": latest["response_time_ms"],
                 "recorded_at": latest["recorded_at"],
+                **statistics,
+                **ping_labels,
             }
         )
     return render_template(
@@ -106,7 +183,43 @@ def device_detail(device_id):
         device=device,
         history=history,
         history_hidden=history_hidden,
+        tcp_ports=ALLOWED_TCP_PORTS,
+        chart=latency_chart(visible_history),
+        history_bar=history_bar,
     )
+
+
+@bp.post("/devices/<int:device_id>/check-port")
+def check_device_port(device_id):
+    """Try one allowed TCP port on one saved device and store the result."""
+    device = _find_device(device_id)
+    if not _acquire_check():
+        flash("A connectivity check is already running. Wait for it to finish.")
+        return redirect(url_for("devices.device_detail", device_id=device["id"]))
+    try:
+        if _device_is_cooling_down(device["id"]):
+            flash("This device was checked recently. Wait a few seconds before checking it again.")
+            return redirect(url_for("devices.device_detail", device_id=device["id"]))
+        result = check_authorized_tcp_port(
+            _database_path(),
+            device["id"],
+            request.form.get("port", ""),
+            timeout_seconds=current_app.config["TCP_TIMEOUT_SECONDS"],
+        )
+        if result["error_details"] == "Port must be 22, 53, 80, 443, or 3389.":
+            flash(result["error_details"])
+            return redirect(url_for("devices.device_detail", device_id=device["id"]))
+        _store_check(
+            {
+                "device_id": device["id"],
+                "check_type": "tcp",
+                "port": request.form.get("port", ""),
+                **result,
+            }
+        )
+        return redirect(url_for("devices.device_detail", device_id=device["id"]))
+    finally:
+        _check_lock.release()
 
 
 @bp.post("/devices/<int:device_id>/check")
@@ -139,6 +252,14 @@ def check_all_devices():
 
 
 def _check_all_devices():
+    outcome = _perform_check_all()
+    if not isinstance(outcome, str):
+        return outcome
+    flash(outcome)
+    return redirect(url_for("devices.inventory"))
+
+
+def _perform_check_all():
     try:
         devices = get_device_overview(_database_path())["devices"]
     except DatabaseError:
@@ -150,11 +271,9 @@ def _check_all_devices():
         now=datetime.now(timezone.utc),
     )
     if not devices:
-        flash("There are no devices to check.")
-        return redirect(url_for("devices.inventory"))
+        return "There are no devices to check."
     if not due:
-        flash("Every device was checked recently. Wait a few seconds and try again.")
-        return redirect(url_for("devices.inventory"))
+        return "Every device was checked recently. Wait a few seconds and try again."
 
     try:
         results = run_authorized_checks(
@@ -178,8 +297,112 @@ def _check_all_devices():
             saved += 1
         else:
             unsaved += 1
-    flash(_batch_message(saved, failed_checks, unsaved, len(skipped), len(deferred)))
-    return redirect(url_for("devices.inventory"))
+    return _batch_message(saved, failed_checks, unsaved, len(skipped), len(deferred))
+
+
+def scheduled_interval_seconds(app):
+    """Return the wait between scheduled checks, or None when they stay off."""
+    if app.config.get("DEMO_MODE"):
+        return None
+    if app.config.get("TESTING") or not app.config.get("SCHEDULED_CHECKS_ENABLED"):
+        return None
+    minutes = app.config.get("SCHEDULED_CHECK_MINUTES")
+    if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes < 1:
+        return None
+    return minutes * 60
+
+
+def start_scheduled_checks(app):
+    """Start one daemon thread when scheduled checks are explicitly enabled.
+
+    The thread waits one full interval before the first check. Each cycle
+    uses the same batch limit, cooldown, and lock as Check all.
+    """
+    interval = scheduled_interval_seconds(app)
+    if interval is None:
+        return
+    thread = threading.Thread(
+        target=_scheduled_loop,
+        args=(app, interval),
+        name="scheduled-checks",
+        daemon=True,
+    )
+    thread.start()
+
+
+def run_scheduled_checks(app):
+    """Run one Check all cycle if no other check is already running."""
+    if app.config.get("DEMO_MODE"):
+        return "demo"
+    with app.app_context():
+        if not _acquire_check():
+            return "busy"
+        try:
+            outcome = _perform_check_all()
+        finally:
+            _check_lock.release()
+    if not isinstance(outcome, str):
+        return "error"
+    return outcome
+
+
+def _scheduled_loop(app, interval_seconds):
+    while True:
+        time.sleep(interval_seconds)
+        try:
+            run_scheduled_checks(app)
+        except Exception:
+            continue
+
+
+@bp.get("/devices/<int:device_id>/history.csv")
+def export_history(device_id):
+    """Download one saved device's monitoring history as CSV."""
+    device = _find_device(device_id)
+    try:
+        history = get_monitoring_history(_database_path(), device["id"])
+    except (ValidationError, DatabaseError):
+        return _database_page("The monitoring history could not be loaded.")
+    buffer = StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "recorded_at_utc",
+            "check_type",
+            "port",
+            "status",
+            "response_time_ms",
+            "error_details",
+            "min_ms",
+            "median_ms",
+            "max_ms",
+            "jitter_ms",
+            "packet_loss_pct",
+        ]
+    )
+    for result in history:
+        writer.writerow(
+            [
+                _csv_cell(result["recorded_at"]),
+                _csv_cell(result["check_type"]),
+                "" if result["port"] is None else result["port"],
+                _csv_cell(result["status"]),
+                "" if result["response_time_ms"] is None else result["response_time_ms"],
+                _csv_cell(result["error_details"] or ""),
+                "" if result["min_ms"] is None else result["min_ms"],
+                "" if result["median_ms"] is None else result["median_ms"],
+                "" if result["max_ms"] is None else result["max_ms"],
+                "" if result["jitter_ms"] is None else result["jitter_ms"],
+                "" if result["packet_loss_pct"] is None else result["packet_loss_pct"],
+            ]
+        )
+    return Response(
+        buffer.getvalue(),
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="device-{device["id"]}-history.csv"'
+        },
+    )
 
 
 @bp.get("/devices/<int:device_id>/delete")
@@ -206,6 +429,14 @@ def remove_device(device_id):
     except DatabaseError:
         return _database_page("The device could not be deleted.")
     return redirect(url_for("devices.inventory"))
+
+
+def _csv_cell(value):
+    """Keep exported text from being treated as a spreadsheet formula."""
+    text = "" if value is None else str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return "'" + text
+    return text
 
 
 def _database_path():
@@ -241,6 +472,13 @@ def _store_check(result, report_errors=True):
             status=result["status"],
             response_time_ms=result["response_time_ms"],
             error_details=result["error_details"],
+            check_type=result.get("check_type", "ping"),
+            port=result.get("port"),
+            min_ms=result.get("min_ms"),
+            median_ms=result.get("median_ms"),
+            max_ms=result.get("max_ms"),
+            jitter_ms=result.get("jitter_ms"),
+            packet_loss_pct=result.get("packet_loss_pct"),
         )
     except (ValidationError, DatabaseError):
         if report_errors:
@@ -307,12 +545,98 @@ def _find_device(device_id):
     return device
 
 
+def _dashboard_context():
+    """Load the dashboard, then apply the current filter and grouping."""
+    overview = present_overview(get_device_overview(_database_path()))
+    changes = present_status_changes(list_status_changes(_database_path(), limit=10))
+    incidents = present_incidents(list_incidents(_database_path(), limit=10))
+    overview, device_filter = _filtered_overview(overview)
+    _attach_history(overview["devices"], 30)
+    group_by = _requested_group()
+    overview["incidents"] = incidents
+    overview["group_by"] = group_by
+    overview["groups"] = group_devices(overview["devices"], group_by)
+    return overview, changes, device_filter
+
+
+def _attach_history(devices, days):
+    """Add a status bar to each device from one saved-result query."""
+    bars = _history_bars([device["id"] for device in devices], days)
+    for device in devices:
+        device["history_bar"] = bars[device["id"]]
+
+
+def _history_bars(device_ids, days):
+    today = datetime.now(TORONTO).date()
+    start_day = today - timedelta(days=days - 1)
+    start_at, end_at = toronto_window(start_day, today)
+    rows = list_monitoring_window(
+        _database_path(),
+        device_ids,
+        start_at.isoformat(timespec="seconds"),
+        end_at.isoformat(timespec="seconds"),
+    )
+    return status_history(rows, device_ids, days, today)
+
+
+def _requested_group():
+    value = request.args.get("group", "").strip().lower()
+    if value in ("location", "vlan"):
+        return value
+    return "none"
+
+
+def _filtered_overview(overview):
+    """Keep summary counts for every device and filter only the table."""
+    try:
+        device_filter = parse_device_filter(
+            request.args.get("location", ""),
+            request.args.get("vlan", ""),
+        )
+    except ValidationError as exc:
+        return overview, {
+            "location": request.args.get("location", ""),
+            "vlan": request.args.get("vlan", ""),
+            "error": str(exc),
+            "active": False,
+        }
+    location = device_filter["location"]
+    vlan = device_filter["vlan"]
+    active = bool(location) or vlan is not None
+    if active:
+        overview = {
+            **overview,
+            "devices": [
+                device
+                for device in overview["devices"]
+                if _device_matches_filter(device, location, vlan)
+            ],
+        }
+    return overview, {
+        "location": location or "",
+        "vlan": "" if vlan is None else str(vlan),
+        "error": None,
+        "active": active,
+    }
+
+
+def _device_matches_filter(device, location, vlan):
+    if location and (device.get("location") or "").casefold() != location.casefold():
+        return False
+    if vlan is not None and device.get("vlan") != vlan:
+        return False
+    return True
+
+
 def _submitted_form():
     return {
         "name": request.form.get("name", ""),
         "ip_address": request.form.get("ip_address", ""),
         "device_type": request.form.get("device_type", ""),
         "description": request.form.get("description", ""),
+        "location": request.form.get("location", ""),
+        "vlan": request.form.get("vlan", ""),
+        "parent_id": request.form.get("parent_id", ""),
     }
 
 
@@ -322,7 +646,62 @@ def _blank_form():
         "ip_address": "",
         "device_type": "",
         "description": "",
+        "location": "",
+        "vlan": "",
+        "parent_id": "",
     }
+
+
+def _form_from_device(device):
+    return {
+        "name": device.get("name") or "",
+        "ip_address": device.get("ip_address") or "",
+        "device_type": device.get("device_type") or "",
+        "description": device.get("description") or "",
+        "location": device.get("location") or "",
+        "vlan": "" if device.get("vlan") is None else str(device["vlan"]),
+        "parent_id": "" if device.get("parent_id") is None else str(device["parent_id"]),
+    }
+
+
+def _render_device_form(device, error, *, device_id=None, status_code=200):
+    editing = device_id is not None
+    rendered = render_template(
+        "devices/form.html",
+        device=device,
+        error=error,
+        page_title="Edit device" if editing else "Add device",
+        page_lede=(
+            "Update this saved device. Monitoring history stays with the device."
+            if editing
+            else "Enter a device you are allowed to monitor. Each IP address can be saved once."
+        ),
+        form_action=(
+            url_for("devices.edit_device", device_id=device_id)
+            if editing
+            else url_for("devices.create_device")
+        ),
+        submit_label="Save changes" if editing else "Save device",
+        cancel_url=(
+            url_for("devices.device_detail", device_id=device_id)
+            if editing
+            else url_for("devices.inventory")
+        ),
+        parent_choices=_parent_choices(device_id),
+    )
+    if status_code == 200:
+        return rendered
+    return rendered, status_code
+
+
+def _parent_choices(device_id=None):
+    """Devices that can be selected as a parent. The device itself is omitted."""
+    choices = []
+    for device in list_devices(_database_path()):
+        if device_id is not None and device["id"] == device_id:
+            continue
+        choices.append({"id": device["id"], "name": device["name"]})
+    return choices
 
 
 def _database_page(message):

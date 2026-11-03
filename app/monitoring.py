@@ -15,15 +15,17 @@ or with confusing packet statistics.
 
 import os
 import re
+import socket
 import subprocess
+import time
 from concurrent.futures import ThreadPoolExecutor, wait
 from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address
 
 from app.config import Config
-from app.database import DatabaseError, ValidationError, get_device
+from app.database import ALLOWED_TCP_PORTS, DatabaseError, ValidationError, get_device
 
-MAX_ATTEMPTS = 4
+MAX_ATTEMPTS = 5
 MIN_TIMEOUT_MS = 200
 MAX_TIMEOUT_MS = 5000
 MAX_COMMAND_TIMEOUT_SECONDS = 15
@@ -31,7 +33,7 @@ MAX_CHECK_CONCURRENCY = 2
 MAX_CHECK_BATCH = 20
 
 _REPLY_TIME = re.compile(r"time(?P<operator>[=<])\s*(?P<milliseconds>\d+)\s*ms", re.IGNORECASE)
-_AVERAGE_TIME = re.compile(r"Average\s*=\s*(?P<milliseconds>\d+)\s*ms", re.IGNORECASE)
+_PACKET_LOSS = re.compile(r"\((?P<percent>\d+)%\s*loss\)", re.IGNORECASE)
 _TIMED_OUT = re.compile(r"request timed out", re.IGNORECASE)
 _UNREACHABLE = re.compile(r"destination (?:host|net) unreachable", re.IGNORECASE)
 _TRANSMIT_FAILED = re.compile(r"transmit failed|general failure", re.IGNORECASE)
@@ -57,7 +59,7 @@ def check_authorized_device(database_path, device_id, *, attempts=None, timeout_
     )
 
 
-def check_connectivity(ip_address_value, *, attempts=1, timeout_ms=1000):
+def check_connectivity(ip_address_value, *, attempts=5, timeout_ms=1000):
     """Ping one validated IP address and return a structured result.
 
     ``status`` is ``online``, ``offline``, or ``error``. ``response_time_ms``
@@ -96,12 +98,95 @@ def check_connectivity(ip_address_value, *, attempts=1, timeout_ms=1000):
             creationflags=subprocess.CREATE_NO_WINDOW,
         )
     except subprocess.TimeoutExpired:
-        return _result("offline", "The device did not respond before the timeout.")
+        return _result(
+            "offline",
+            "The device did not respond before the timeout.",
+            packet_loss_pct=100,
+        )
     except OSError:
         return _result("error", "The ping command could not be started.")
 
     output = f"{completed.stdout or ''}\n{completed.stderr or ''}"
     return _result_from_output(output)
+
+
+def check_authorized_tcp_port(database_path, device_id, port, *, timeout_seconds=2):
+    """Try one allowed TCP port on a device that is already stored.
+
+    The address comes from the database. A port outside the fixed list never
+    opens a socket.
+    """
+    try:
+        device = get_device(database_path, device_id)
+    except ValidationError:
+        return _result("error", "Device ID must be a positive whole number.")
+    except DatabaseError:
+        return _result("error", "The device could not be loaded.")
+    if device is None:
+        return _result("error", "This device is not in the inventory.")
+    return check_tcp_port(
+        device["ip_address"],
+        port,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def check_tcp_port(ip_address_value, port, *, timeout_seconds=2):
+    """Connect to one validated IP address on one allowed port.
+
+    Success is online. A timeout or a refused connection is offline.
+    Any other failure is error, without the raw socket message.
+    """
+    parsed = _parsed_ip_address(ip_address_value)
+    if parsed is None:
+        return _result("error", "IP address is not valid.")
+    if _is_blocked_target(parsed):
+        return _result(
+            "error",
+            "IP address must be one device, not a broadcast or multicast address.",
+        )
+    allowed_port = _allowed_port(port)
+    if allowed_port is None:
+        return _result("error", "Port must be 22, 53, 80, 443, or 3389.")
+    timeout = _validated_tcp_timeout(timeout_seconds)
+    if timeout is None:
+        return _result("error", "The port check settings are not valid.")
+
+    started = time.perf_counter()
+    try:
+        connection = socket.create_connection((str(parsed), allowed_port), timeout=timeout)
+    except TimeoutError:
+        return _result("offline", "The port did not respond before the timeout.")
+    except ConnectionRefusedError:
+        return _result("offline", "The port did not accept a connection.")
+    except OSError:
+        return _result("error", "The port check could not be completed.")
+    try:
+        response_time_ms = int((time.perf_counter() - started) * 1000)
+    finally:
+        connection.close()
+    return _result("online", response_time_ms=response_time_ms)
+
+
+def _allowed_port(port):
+    if isinstance(port, str) and port.strip().isdigit():
+        text = port.strip()
+        if len(text) > 1 and text.startswith("0"):
+            return None
+        port = int(text)
+    if isinstance(port, bool) or not isinstance(port, int):
+        return None
+    if port not in ALLOWED_TCP_PORTS:
+        return None
+    return port
+
+
+def _validated_tcp_timeout(timeout_seconds):
+    if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)):
+        return None
+    if not 0.2 <= float(timeout_seconds) <= 5:
+        return None
+    return float(timeout_seconds)
 
 
 def _ping_command(normalized_ip, attempts, timeout_ms):
@@ -121,16 +206,31 @@ def _result_from_output(output):
 
     reply_times = _reply_times(output)
     if reply_times and not _UNREACHABLE.search(output):
-        average = _AVERAGE_TIME.search(output)
-        response_time_ms = int(average.group("milliseconds")) if average else reply_times[-1]
-        return _result("online", response_time_ms=response_time_ms)
+        stats = _latency_stats(reply_times)
+        return _result(
+            "online",
+            response_time_ms=stats["median_ms"],
+            min_ms=stats["min_ms"],
+            median_ms=stats["median_ms"],
+            max_ms=stats["max_ms"],
+            jitter_ms=stats["jitter_ms"],
+            packet_loss_pct=_packet_loss_pct(output),
+        )
 
     if _TIMED_OUT.search(output):
-        return _result("offline", "The device did not respond before the timeout.")
+        return _result(
+            "offline",
+            "The device did not respond before the timeout.",
+            packet_loss_pct=100,
+        )
     if _UNREACHABLE.search(output):
-        return _result("offline", "The device could not be reached.")
+        return _result(
+            "offline",
+            "The device could not be reached.",
+            packet_loss_pct=100,
+        )
     if re.search(r"Received\s*=\s*0\b", output, re.IGNORECASE):
-        return _result("offline", "The device did not reply.")
+        return _result("offline", "The device did not reply.", packet_loss_pct=100)
     return _result("error", "The connectivity check returned an unexpected result.")
 
 
@@ -142,6 +242,52 @@ def _reply_times(output):
             milliseconds = 0
         times.append(milliseconds)
     return times
+
+
+def _packet_loss_pct(output):
+    match = _PACKET_LOSS.search(output)
+    if match is None:
+        return None
+    percent = int(match.group("percent"))
+    if percent < 0 or percent > 100:
+        return None
+    return percent
+
+
+def _latency_stats(reply_times):
+    ordered = sorted(reply_times)
+    count = len(ordered)
+    middle = count // 2
+    if count % 2 == 1:
+        median = ordered[middle]
+    else:
+        median = _round_half_up((ordered[middle - 1] + ordered[middle]) / 2)
+    return {
+        "min_ms": ordered[0],
+        "median_ms": median,
+        "max_ms": ordered[-1],
+        "jitter_ms": _jitter_ms(reply_times),
+    }
+
+
+def _jitter_ms(reply_times):
+    """Mean absolute difference between consecutive echo replies.
+
+    One reply has no consecutive pair, so jitter is left empty.
+    """
+    if len(reply_times) < 2:
+        return None
+    differences = [
+        abs(reply_times[index] - reply_times[index - 1])
+        for index in range(1, len(reply_times))
+    ]
+    return _round_half_up(sum(differences) / len(differences))
+
+
+def _round_half_up(value):
+    if value >= 0:
+        return int(value + 0.5)
+    return int(value - 0.5)
 
 
 def _parsed_ip_address(value):
@@ -299,13 +445,34 @@ def _request_timeout(count, workers, timeout_ms, request_timeout_seconds):
     return min(max(1, request_timeout_seconds), estimate)
 
 
-def _result(status, error_details=None, response_time_ms=None):
+def _result(
+    status,
+    error_details=None,
+    response_time_ms=None,
+    *,
+    min_ms=None,
+    median_ms=None,
+    max_ms=None,
+    jitter_ms=None,
+    packet_loss_pct=None,
+):
     if status == "online":
         error_details = None
     else:
         response_time_ms = None
+        min_ms = None
+        median_ms = None
+        max_ms = None
+        jitter_ms = None
+    if status == "error":
+        packet_loss_pct = None
     return {
         "status": status,
         "response_time_ms": response_time_ms,
         "error_details": error_details,
+        "min_ms": min_ms,
+        "median_ms": median_ms,
+        "max_ms": max_ms,
+        "jitter_ms": jitter_ms,
+        "packet_loss_pct": packet_loss_pct,
     }

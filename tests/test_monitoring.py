@@ -13,7 +13,9 @@ import pytest
 from app.database import add_device, initialize_database
 from app.monitoring import (
     check_authorized_device,
+    check_authorized_tcp_port,
     check_connectivity,
+    check_tcp_port,
     run_authorized_checks,
     select_due_devices,
 )
@@ -76,12 +78,103 @@ def test_online_reply_returns_the_average_response_time(monkeypatch):
         "status": "online",
         "response_time_ms": 12,
         "error_details": None,
+        "min_ms": 12,
+        "median_ms": 12,
+        "max_ms": 12,
+        "jitter_ms": None,
+        "packet_loss_pct": 0,
     }
     command, options = calls[0]
     assert isinstance(command, list)
     assert options["shell"] is False
     assert command == ["ping", "-4", "-n", "1", "-w", "1000", "192.168.1.1"]
     assert options["timeout"] <= 15
+
+
+ALL_REPLIES_OUTPUT = """
+Pinging 192.168.1.1 with 32 bytes of data:
+Reply from 192.168.1.1: bytes=32 time=8ms TTL=64
+Reply from 192.168.1.1: bytes=32 time=10ms TTL=64
+Reply from 192.168.1.1: bytes=32 time=9ms TTL=64
+Reply from 192.168.1.1: bytes=32 time=12ms TTL=64
+Reply from 192.168.1.1: bytes=32 time=11ms TTL=64
+
+Ping statistics for 192.168.1.1:
+    Packets: Sent = 5, Received = 5, Lost = 0 (0% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 8ms, Maximum = 12ms, Average = 10ms
+"""
+
+PARTIAL_LOSS_OUTPUT = """
+Pinging 192.168.1.1 with 32 bytes of data:
+Reply from 192.168.1.1: bytes=32 time=10ms TTL=64
+Request timed out.
+Reply from 192.168.1.1: bytes=32 time=14ms TTL=64
+Reply from 192.168.1.1: bytes=32 time=11ms TTL=64
+Request timed out.
+
+Ping statistics for 192.168.1.1:
+    Packets: Sent = 5, Received = 3, Lost = 2 (40% loss),
+Approximate round trip times in milli-seconds:
+    Minimum = 10ms, Maximum = 14ms, Average = 11ms
+"""
+
+FULL_TIMEOUT_OUTPUT = """
+Pinging 192.168.1.50 with 32 bytes of data:
+Request timed out.
+Request timed out.
+Request timed out.
+Request timed out.
+Request timed out.
+
+Ping statistics for 192.168.1.50:
+    Packets: Sent = 5, Received = 0, Lost = 5 (100% loss),
+"""
+
+
+def test_five_replies_store_min_median_max_jitter_and_no_loss(monkeypatch):
+    calls = _patch_ping(monkeypatch, _completed(ALL_REPLIES_OUTPUT))
+
+    result = check_connectivity("192.168.1.1", attempts=5, timeout_ms=1000)
+
+    assert calls[0][0] == ["ping", "-4", "-n", "5", "-w", "1000", "192.168.1.1"]
+    assert calls[0][1]["shell"] is False
+    assert result["status"] == "online"
+    assert result["response_time_ms"] == 10
+    assert result["min_ms"] == 8
+    assert result["median_ms"] == 10
+    assert result["max_ms"] == 12
+    assert result["jitter_ms"] == 2
+    assert result["packet_loss_pct"] == 0
+
+
+def test_partial_loss_keeps_the_replies_and_records_the_loss(monkeypatch):
+    _patch_ping(monkeypatch, _completed(PARTIAL_LOSS_OUTPUT, returncode=1))
+
+    result = check_connectivity("192.168.1.1", attempts=5, timeout_ms=1000)
+
+    assert result["status"] == "online"
+    assert result["response_time_ms"] == 11
+    assert result["min_ms"] == 10
+    assert result["median_ms"] == 11
+    assert result["max_ms"] == 14
+    assert result["jitter_ms"] == 4
+    assert result["packet_loss_pct"] == 40
+
+
+def test_full_timeout_stores_no_latency_and_complete_loss(monkeypatch):
+    _patch_ping(monkeypatch, _completed(FULL_TIMEOUT_OUTPUT, returncode=1))
+
+    result = check_connectivity("192.168.1.50", attempts=5, timeout_ms=1000)
+
+    assert result["status"] == "offline"
+    assert result["response_time_ms"] is None
+    assert result["min_ms"] is None
+    assert result["median_ms"] is None
+    assert result["max_ms"] is None
+    assert result["jitter_ms"] is None
+    assert result["packet_loss_pct"] == 100
+    assert result["error_details"] == "The device did not respond before the timeout."
 
 
 def test_sub_millisecond_reply_is_reported_as_zero_milliseconds(monkeypatch):
@@ -103,6 +196,11 @@ def test_request_timed_out_is_offline(monkeypatch):
         "status": "offline",
         "response_time_ms": None,
         "error_details": "The device did not respond before the timeout.",
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": 100,
     }
 
 
@@ -129,6 +227,11 @@ def test_unreachable_host_is_offline_even_when_a_packet_was_received(monkeypatch
         "status": "offline",
         "response_time_ms": None,
         "error_details": "The device could not be reached.",
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": 100,
     }
 
 
@@ -143,6 +246,11 @@ def test_invalid_ip_does_not_run_ping(ip_address):
         "status": "error",
         "response_time_ms": None,
         "error_details": "IP address is not valid.",
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": None,
     }
 
 
@@ -169,6 +277,11 @@ def test_unexpected_output_is_an_error(monkeypatch):
         "status": "error",
         "response_time_ms": None,
         "error_details": "The connectivity check returned an unexpected result.",
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": None,
     }
     assert "Pong" not in result["error_details"]
 
@@ -208,6 +321,11 @@ def test_unknown_device_is_not_pinged(tmp_path):
         "status": "error",
         "response_time_ms": None,
         "error_details": "This device is not in the inventory.",
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": None,
     }
 
 
@@ -329,6 +447,106 @@ def test_a_failed_check_does_not_stop_the_rest_of_the_batch(monkeypatch):
     assert by_id[1]["status"] == "offline"
     assert by_id[2]["status"] == "error"
     assert "secret" not in by_id[2]["error_details"]
+
+
+class _DummySocket:
+    def close(self):
+        return None
+
+
+def test_tcp_check_rejects_a_port_outside_the_fixed_list_without_connecting(monkeypatch):
+    def fail(*args, **kwargs):
+        raise AssertionError("A disallowed port must not open a socket.")
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", fail)
+
+    result = check_tcp_port("192.168.1.1", 21)
+
+    assert result["status"] == "error"
+    assert result["error_details"] == "Port must be 22, 53, 80, 443, or 3389."
+    assert result["response_time_ms"] is None
+
+
+def test_tcp_check_rejects_a_blocked_address_without_connecting(monkeypatch):
+    def fail(*args, **kwargs):
+        raise AssertionError("A blocked address must not open a socket.")
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", fail)
+
+    result = check_tcp_port("255.255.255.255", 80)
+
+    assert result["status"] == "error"
+    assert "broadcast or multicast" in result["error_details"]
+
+
+def test_tcp_check_records_a_successful_connection(monkeypatch):
+    calls = []
+
+    def fake_connect(address, timeout):
+        calls.append((address, timeout))
+        return _DummySocket()
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", fake_connect)
+    monkeypatch.setattr("app.monitoring.time.perf_counter", iter((0.0, 0.012)).__next__)
+
+    result = check_tcp_port("192.168.1.1", "443", timeout_seconds=2)
+
+    assert calls == [(("192.168.1.1", 443), 2.0)]
+    assert result == {
+        "status": "online",
+        "response_time_ms": 12,
+        "error_details": None,
+        "min_ms": None,
+        "median_ms": None,
+        "max_ms": None,
+        "jitter_ms": None,
+        "packet_loss_pct": None,
+    }
+
+
+def test_tcp_check_reports_timeout_and_refusal_without_raw_errors(monkeypatch):
+    def time_out(address, timeout):
+        raise TimeoutError("timed out talking to 10.1.1.1")
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", time_out)
+    timeout_result = check_tcp_port("10.1.1.1", 22)
+    assert timeout_result["status"] == "offline"
+    assert timeout_result["error_details"] == "The port did not respond before the timeout."
+    assert "10.1.1.1" not in timeout_result["error_details"]
+
+    def refuse(address, timeout):
+        raise ConnectionRefusedError(10061, "No connection could be made")
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", refuse)
+    refused = check_tcp_port("10.1.1.1", 3389)
+    assert refused["status"] == "offline"
+    assert refused["error_details"] == "The port did not accept a connection."
+    assert "10061" not in refused["error_details"]
+
+
+def test_tcp_check_uses_only_the_saved_device_address(tmp_path, monkeypatch):
+    database_path = tmp_path / "monitor.db"
+    initialize_database(database_path)
+    device = add_device(
+        database_path,
+        name="Core router",
+        ip_address="192.168.1.1",
+        device_type="router",
+    )
+    calls = []
+
+    def fake_connect(address, timeout):
+        calls.append(address)
+        return _DummySocket()
+
+    monkeypatch.setattr("app.monitoring.socket.create_connection", fake_connect)
+
+    missing = check_authorized_tcp_port(database_path, 999, 80)
+    saved = check_authorized_tcp_port(database_path, device["id"], 80)
+
+    assert missing["status"] == "error"
+    assert calls == [("192.168.1.1", 80)]
+    assert saved["status"] == "online"
 
 
 def _patch_ping(monkeypatch, completed):

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "site/_icons.html" import icon %}
+
+{% block title %}Zyber NOC{% endblock %}
+{% block brand_tagline %}<p class="brand-tagline">Network operations centre, built from ping to topology.</p>{% endblock %}
+{% block body_class %}page-site page-home{% endblock %}
+
+{% block content %}
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-mesh" aria-hidden="true"></div>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="kicker" data-reveal>// local network monitoring console</p>
+      <h1 id="hero-title" class="hero-title" data-reveal>
+        <span>Every device.</span>
+        <span>Every ping.</span>
+        <span class="hero-accent">On record.</span>
+      </h1>
+      <p class="hero-lede" data-reveal>A Flask and SQLite console that pings the devices you save, keeps every result, and turns them into uptime, incidents, topology and reports. It runs on this PC only.</p>
+      <div class="hero-terminal mono" data-reveal>
+        <p><span class="prompt">PS&gt;</span> <span class="typed" data-type="{% if first_ip %}ping -n 5 {{ first_ip }}{% else %}ping -n 5 &lt;saved device&gt;{% endif %}">{% if first_ip %}ping -n 5 {{ first_ip }}{% else %}ping -n 5 &lt;saved device&gt;{% endif %}</span><span class="caret" aria-hidden="true"></span></p>
+        {% if devices %}
+          <p class="term-out">last saved result: <span class="term-{{ devices[0].status_class }}">{{ devices[0].status_label | lower }}</span> &middot; {{ devices[0].checked_label }}</p>
+        {% else %}
+          <p class="term-out">no saved results yet</p>
+        {% endif %}
+      </div>
+      <div class="hero-actions" data-reveal>
+        <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open dashboard</a>
+        <a class="button ghost" href="{{ url_for('site.reports') }}">View reports</a>
+      </div>
+    </div>
+    <div class="hero-art" data-reveal>
+      {% include "site/_network.html" %}
+      <p class="art-caption mono">illustration &middot; not live data</p>
+    </div>
+  </div>
+  <a class="scroll-cue mono" href="#stats" aria-label="Scroll to stats"><span></span>scroll</a>
+</section>
+
+<section id="stats" class="stats-strip" aria-labelledby="stats-title">
+  <div class="wrap">
+    <h2 id="stats-title" class="section-kicker" data-reveal>{% if demo_mode %}// from sample data, not live readings{% else %}// from your saved results{% endif %}</h2>
+    <ul class="stat-row">
+      <li class="glow-card" data-reveal>
+        <p class="stat-num mono"><span data-counter="{{ summary.total }}">{{ summary.total }}</span></p>
+        <p class="stat-cap">saved {{ "device" if summary.total == 1 else "devices" }}</p>
+      </li>
+      <li class="glow-card" data-reveal>
+        <p class="stat-num mono"><span data-counter="{{ totals.checks }}">{{ totals.checks }}</span></p>
+        <p class="stat-cap">checks recorded</p>
+      </li>
+      <li class="glow-card" data-reveal>
+        <p class="stat-num mono">{% if totals.uptime is not none %}<span data-counter="{{ totals.uptime }}">{{ totals.uptime }}</span>%{% else %}No data{% endif %}</p>
+        <p class="stat-cap">of checks online</p>
+      </li>
+      <li class="glow-card" data-reveal>
+        <p class="stat-num mono"><span data-counter="{{ totals.incidents }}">{{ totals.incidents }}</span></p>
+        <p class="stat-cap">{{ "incident" if totals.incidents == 1 else "incidents" }} recorded{% if totals.ongoing %} &middot; {{ totals.ongoing }} ongoing{% endif %}</p>
+      </li>
+      <li class="glow-card" data-reveal>
+        <p class="stat-num stat-date mono">{{ totals.since_label or "No checks yet" }}</p>
+        <p class="stat-cap">first saved check</p>
+      </li>
+    </ul>
+
+    {% if devices %}
+      <div class="device-strip" data-reveal>
+        <p class="strip-label mono">on the console now</p>
+        <ul>
+          {% for device in devices %}
+            <li>
+              <a class="device-chip glow-card" href="{{ url_for('devices.device_detail', device_id=device.id) }}">
+                <span class="chip-dot chip-{{ device.status_class }}" aria-hidden="true"></span>
+                <span class="chip-name">{{ device.name }}</span>
+                <span class="chip-ip mono">{{ device.ip_address }}</span>
+                <span class="status status-{{ device.status_class }}">{{ device.status_label }}</span>
+                <span class="chip-time">{{ device.checked_label }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="how" aria-labelledby="how-title">
+  <div class="wrap">
+    <p class="section-kicker" data-reveal>// how it works</p>
+    <h2 id="how-title" class="section-title-lg" data-reveal>Four steps from IP address to insight.</h2>
+    <ol class="how-grid">
+      <li class="how-card glow-card" data-reveal>
+        <span class="how-num mono">01</span>{{ icon("add") }}
+        <h3>Save a device</h3>
+        <p>Add a name and an IP. Broadcast, multicast, unspecified and reserved addresses are refused before anything is stored.</p>
+      </li>
+      <li class="how-card glow-card" data-reveal>
+        <span class="how-num mono">02</span>{{ icon("ping") }}
+        <h3>Check it</h3>
+        <p>Windows <code>ping -n 5</code> measures min, median, max, jitter and loss. TCP checks try one allowed port.</p>
+      </li>
+      <li class="how-card glow-card" data-reveal>
+        <span class="how-num mono">03</span>{{ icon("store") }}
+        <h3>Keep every result</h3>
+        <p>Each check is written to SQLite with parameterized SQL. A change in status is saved as its own event.</p>
+      </li>
+      <li class="how-card glow-card" data-reveal>
+        <span class="how-num mono">04</span>{{ icon("see") }}
+        <h3>See the story</h3>
+        <p>Uptime, the 90-day bar, latency bands, incidents, the topology tree and reports are all drawn from those rows.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="showcase" aria-labelledby="show-title">
+  <div class="wrap">
+    <p class="section-kicker" data-reveal>// inside the console</p>
+    <h2 id="show-title" class="section-title-lg" data-reveal>Built like an ops tool, not a homework page.</h2>
+
+    {% set features = [
+      ("shot-dashboard.png", 900, "Dashboard", "Stat cards, a filterable device table with 30-day bars, and an incidents rail beside it. Refresh pulls saved results without reloading.", url_for('devices.inventory'), "Open dashboard"),
+      ("shot-detail.png", 900, "Device detail", "A 90-day status bar, a SmokePing-style latency band, jitter, packet loss and the full check history with CSV export.", url_for('devices.device_detail', device_id=devices[0].id) if devices else url_for('devices.inventory'), "Open a device"),
+      ("shot-topology.png", 520, "Topology", "Parent links become a tree drawn as server-side SVG. A child behind a failed parent reads as unreachable, not as a new outage.", url_for('devices.topology'), "Open topology")
+    ] %}
+    {% for img, img_h, name, text, href, cta in features %}
+      <article class="feature {% if loop.index is even %}feature-flip{% endif %}">
+        <figure class="feature-figure" data-tilt data-reveal>
+          <div class="browser-bar" aria-hidden="true"><span></span><span></span><span></span><em class="mono">127.0.0.1:5000</em></div>
+          <img src="{{ url_for('static', filename='img/' ~ img) }}" alt="Screenshot of the {{ name | lower }} page" loading="lazy" width="1440" height="{{ img_h }}">
+        </figure>
+        <div class="feature-copy" data-reveal>
+          <p class="feature-num mono">0{{ loop.index }}</p>
+          <h3>{{ name }}</h3>
+          <p>{{ text }}</p>
+          <a class="text-link" href="{{ href }}">{{ cta }} {{ icon("arrow") }}</a>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="stack" aria-labelledby="stack-title">
+  <div class="wrap">
+    <p class="section-kicker" data-reveal>// tech stack</p>
+    <h2 id="stack-title" class="section-title-lg" data-reveal>Small stack. No frameworks. No CDN.</h2>
+    <ul class="stack-grid">
+      {% for key, name, note in [
+        ("python", "Python", "Standard library first: sqlite3, subprocess without a shell, zoneinfo."),
+        ("flask", "Flask", "App factory, blueprints, Jinja templates, CSRF on every form."),
+        ("sqlite", "SQLite", "Devices, monitoring results and status changes in one local file."),
+        ("windows", "Windows ping", "ping -n 5 with argument lists, parsed into latency and loss."),
+        ("svg", "SVG", "Charts, status bars, topology and every icon are drawn by hand."),
+        ("js", "Vanilla JS + CSS", "Refresh, motion and cursor effects with zero dependencies.")
+      ] %}
+        <li class="stack-card glow-card" data-reveal>
+          {{ icon(key) }}
+          <h3>{{ name }}</h3>
+          <p>{{ note }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+
+<section class="cta-band" aria-labelledby="cta-title">
+  <div class="cta-mesh" aria-hidden="true"></div>
+  <div class="wrap cta-inner" data-reveal>
+    <h2 id="cta-title">Ready when your network is.</h2>
+    {% if demo_mode %}
+    <p>This copy is a read-only demo. Run the app on your own PC to add devices and run checks.</p>
+    <div class="hero-actions">
+      <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open the sample dashboard</a>
+    {% else %}
+    <p>Add a device, run a check, and watch the record build.</p>
+    <div class="hero-actions">
+      <a class="button primary" data-magnetic href="{{ url_for('devices.new_device') }}">Add a device</a>
+    {% endif %}
+      <a class="button ghost" href="{{ url_for('site.about') }}">Read the story</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

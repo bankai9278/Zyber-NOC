@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% from "site/_icons.html" import icon %}
+
+{% block title %}About · Zyber NOC{% endblock %}
+{% block body_class %}page-site page-about{% endblock %}
+
+{% block content %}
+<section class="page-hero" aria-labelledby="about-title">
+  <div class="hero-mesh hero-mesh-soft" aria-hidden="true"></div>
+  <div class="wrap about-hero">
+    <img class="about-logo" data-reveal src="{{ url_for('static', filename='img/logo-yo.svg') }}" width="96" height="96" alt="Yash Oza logo">
+    <div>
+      <p class="kicker" data-reveal>// about</p>
+      <h1 id="about-title" class="page-hero-title" data-reveal>About Zyber NOC</h1>
+      <p class="hero-lede" data-reveal>I'm Yash Oza, a networking graduate from Mohawk College in Hamilton, Ontario. I built Zyber NOC on my own to get more hands-on experience and to really see how network monitoring works behind the scenes: how a ping becomes a status, how uptime and latency are calculated, and how a NOC dashboard turns raw checks into something you can act on.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="principles" aria-labelledby="why-title">
+    <p class="section-kicker" data-reveal>// why i built it</p>
+    <h2 id="why-title" class="section-title-lg" data-reveal>Why I built it.</h2>
+    <ul class="stack-grid">
+      {% for icon_name, title, text in [
+        ("flask", "Learn by building", "Going past theory and building a working monitoring tool from scratch with Python, Flask and a local database."),
+        ("ping", "See how monitoring really works", "ICMP ping and TCP port checks, response times, packet loss, jitter, status changes, incidents and uptime."),
+        ("shield", "Grow my skills", "Practising secure coding (input validation, CSRF protection, safe command execution), testing, and clean documentation.")
+      ] %}
+        <li class="stack-card glow-card" data-reveal>{{ icon(icon_name) }}<h3>{{ title }}</h3><p>{{ text }}</p></li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="origin" aria-labelledby="origin-title">
+    <p class="section-kicker" data-reveal>// where it started</p>
+    <h2 id="origin-title" class="section-title-lg" data-reveal>Where it started: my network infrastructure project.</h2>
+    <p class="origin-lede" data-reveal><strong>NETTRIO - Network Design Proposal for Skyline Paralegal.</strong> A 5-person Mohawk College team project. My role: design specialist. The scope was a new 7-floor office for 473 employees across 11 departments.</p>
+
+    <ul class="stat-row stat-row-4" aria-label="Skyline Paralegal project scope">
+      <li class="glow-card" data-reveal><p class="stat-num mono" data-counter="7">7</p><p class="stat-cap">floors</p></li>
+      <li class="glow-card" data-reveal><p class="stat-num mono" data-counter="473">473</p><p class="stat-cap">users</p></li>
+      <li class="glow-card" data-reveal><p class="stat-num mono" data-counter="11">11</p><p class="stat-cap">departments</p></li>
+      <li class="glow-card" data-reveal><p class="stat-num mono">$174K</p><p class="stat-cap">total acquisition ($174,171.28)</p></li>
+    </ul>
+
+    <div class="origin-grid">
+      <figure class="arch-figure glow-card" data-reveal>
+        <svg class="arch-svg hier-svg" viewBox="0 0 1000 250" role="img" aria-labelledby="hier-svg-title">
+          <title id="hier-svg-title">Skyline Paralegal network hierarchy: Internet to FortiGate 100F firewall, to Core Catalyst 9500F on floor 7, to a Catalyst 9200L distribution switch on each floor, to Catalyst 2960L access switches and UniFi U6 Pro access points.</title>
+          <defs>
+            <marker id="hier-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3ef0a5"/></marker>
+          </defs>
+          <g class="arch-links">
+            <path d="M160 125 H200" marker-end="url(#hier-arrow)"/>
+            <path d="M350 125 H390" marker-end="url(#hier-arrow)"/>
+            <path d="M540 125 H580" marker-end="url(#hier-arrow)"/>
+            <path d="M740 125 H760 V75 H800" marker-end="url(#hier-arrow)"/>
+            <path d="M760 125 V175 H800" marker-end="url(#hier-arrow)"/>
+          </g>
+          <g class="arch-node">
+            <rect x="20" y="90" width="140" height="70" rx="10"/>
+            <text x="38" y="120" class="arch-h">Internet</text><text x="38" y="143" class="arch-m">WAN</text>
+          </g>
+          <g class="arch-node">
+            <rect x="200" y="90" width="150" height="70" rx="10"/>
+            <text x="218" y="120" class="arch-h">FortiGate</text><text x="218" y="143" class="arch-m">100F firewall</text>
+          </g>
+          <g class="arch-node arch-node-main">
+            <rect x="390" y="90" width="150" height="70" rx="10"/>
+            <text x="408" y="120" class="arch-h">Core 9500F</text><text x="408" y="143" class="arch-m">floor 7</text>
+          </g>
+          <g class="arch-node hier-stack">
+            <rect x="596" y="78" width="150" height="70" rx="10"/>
+            <rect x="588" y="84" width="150" height="70" rx="10"/>
+            <rect x="580" y="90" width="150" height="70" rx="10"/>
+            <text x="598" y="120" class="arch-h">Dist 9200L</text><text x="598" y="143" class="arch-m">one per floor</text>
+          </g>
+          <g class="arch-node">
+            <rect x="800" y="45" width="180" height="60" rx="10"/>
+            <text x="818" y="72" class="arch-h">Access 2960L</text><text x="818" y="93" class="arch-m">wired users</text>
+          </g>
+          <g class="arch-node">
+            <rect x="800" y="145" width="180" height="60" rx="10"/>
+            <text x="818" y="172" class="arch-h">UniFi U6 Pro</text><text x="818" y="193" class="arch-m">wireless APs</text>
+          </g>
+          <text x="500" y="238" class="arch-m arch-center">Cat6a horizontal &middot; OM3 multimode fibre risers &middot; TIA/EIA-568</text>
+        </svg>
+      </figure>
+
+      <dl class="origin-facts" data-reveal>
+        <div><dt>Core and distribution</dt><dd>Cisco Catalyst 9500F core switch on floor 7, Cisco Catalyst 9200L distribution switches on each floor.</dd></div>
+        <div><dt>Access and wireless</dt><dd>Cisco Catalyst 2960L access switches and Ubiquiti UniFi U6 Pro access points.</dd></div>
+        <div><dt>Security and servers</dt><dd>FortiGate 100F firewall, Dell PowerEdge R750 and R550 servers.</dd></div>
+        <div><dt>Cabling</dt><dd>Cat6a horizontal cabling and OM3 multimode fibre risers, following TIA/EIA-568.</dd></div>
+        <div><dt>Segmentation</dt><dd>VLAN segmentation by department, with bandwidth balanced across left and right trunks (29,671 Mb/s and 31,739 Mb/s).</dd></div>
+        <div><dt>Cost</dt><dd>Costed at $174,171.28 total acquisition.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="helped" aria-labelledby="helped-title">
+    <p class="section-kicker" data-reveal>// how it helped me</p>
+    <h2 id="helped-title" class="section-title-lg" data-reveal>From a design on paper to the tool that watches it.</h2>
+    <div class="helped-copy glow-card" data-reveal>
+      <p>Designing Skyline's network taught me how enterprise networks are structured: core, distribution and access layers, VLANs, firewalls and structured cabling. Zyber NOC is the next step. Instead of only designing a network on paper, I wanted to build the tool a NOC team would use to watch one.</p>
+      <p>The device types, parent devices, locations, VLANs and topology map in Zyber NOC all come from thinking in that same <span class="mono">core -&gt; distribution -&gt; access</span> hierarchy.</p>
+    </div>
+  </section>
+
+  <section class="arch" aria-labelledby="arch-title">
+    <p class="section-kicker" data-reveal>// architecture</p>
+    <h2 id="arch-title" class="section-title-lg" data-reveal>One request, end to end.</h2>
+    <figure class="arch-figure glow-card" data-reveal>
+      <svg class="arch-svg" viewBox="0 40 1100 250" role="img" aria-labelledby="arch-svg-title">
+        <title id="arch-svg-title">Browser sends requests to Flask on 127.0.0.1. Flask reads and writes SQLite and runs Windows ping or a TCP connect against saved devices.</title>
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#3ef0a5"/></marker>
+        </defs>
+        <g class="arch-links">
+          <path d="M230 130 H320" marker-end="url(#arrow)"/>
+          <path d="M320 170 H230" marker-end="url(#arrow)"/>
+          <path d="M560 120 H650" marker-end="url(#arrow)"/>
+          <path d="M650 160 H560" marker-end="url(#arrow)"/>
+          <path d="M440 205 V250 H1020 V207" marker-end="url(#arrow)"/>
+        </g>
+        <g class="arch-pulses">
+          <path d="M230 130 H320"/><path d="M560 120 H650"/><path d="M440 205 V250 H1020 V207"/>
+        </g>
+        <g class="arch-node">
+          <rect x="30" y="85" width="200" height="120" rx="10"/>
+          <text x="50" y="118" class="arch-h">Browser</text>
+          <text x="50" y="145">Dashboard, topology,</text><text x="50" y="165">reports, forms</text><text x="50" y="185" class="arch-m">vanilla JS + CSS</text>
+        </g>
+        <g class="arch-node arch-node-main">
+          <rect x="320" y="65" width="240" height="140" rx="10"/>
+          <text x="340" y="98" class="arch-h">Flask @ 127.0.0.1</text>
+          <text x="340" y="125">Blueprints, Jinja, CSRF</text><text x="340" y="145">IP validation</text><text x="340" y="165">Security headers + CSP</text><text x="340" y="188" class="arch-m">python run.py</text>
+        </g>
+        <g class="arch-node">
+          <rect x="650" y="65" width="240" height="140" rx="10"/>
+          <text x="670" y="98" class="arch-h">SQLite</text>
+          <text x="670" y="125">devices</text><text x="670" y="145">monitoring_results</text><text x="670" y="165">status_changes</text><text x="670" y="188" class="arch-m">parameterized SQL</text>
+        </g>
+        <g class="arch-node">
+          <rect x="960" y="85" width="120" height="120" rx="10"/>
+          <text x="978" y="118" class="arch-h">Devices</text>
+          <text x="978" y="145">saved IPs</text><text x="978" y="165">only</text>
+        </g>
+        <text x="730" y="272" class="arch-m arch-center">ping -n 5 / TCP connect, argument list, never shell=True</text>
+      </svg>
+    </figure>
+  </section>
+
+  <section class="skills" aria-labelledby="skills-title">
+    <p class="section-kicker" data-reveal>// what i can do</p>
+    <h2 id="skills-title" class="section-title-lg" data-reveal>What I can do.</h2>
+    <div class="skill-groups">
+      {% for group, skills in [
+        ("Networking", ["TCP/IP", "Subnetting", "VLANs", "Switching and routing concepts", "Cisco Catalyst hierarchy", "Firewalls", "Structured cabling", "Network documentation and costing"]),
+        ("Monitoring & troubleshooting", ["ICMP/TCP checks", "Latency", "Jitter", "Packet loss", "Uptime", "Incident tracking", "Traceroute"]),
+        ("Build", ["Python", "Flask", "SQLite", "HTML/CSS", "Vanilla JavaScript", "SVG", "pytest", "Git", "GitHub Actions"]),
+        ("Security mindset", ["Input validation", "CSRF protection", "Content Security Policy", "Least access (local-only app)"])
+      ] %}
+        <div class="skill-group glow-card" data-reveal>
+          <h3>{{ group }}</h3>
+          <ul class="skill-chips">
+            {% for skill in skills %}<li class="skill-chip">{{ skill }}</li>{% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="next" aria-labelledby="next-title">
+    <p class="section-kicker" data-reveal>// what's next</p>
+    <h2 id="next-title" class="section-title-lg" data-reveal>What's next.</h2>
+    <ul class="next-list">
+      <li data-reveal>Add SNMP polling.</li>
+      <li data-reveal>Add alerting when a status changes.</li>
+      <li data-reveal>Host a read-only demo.</li>
+      <li data-reveal>Work toward certifications such as the CCNA.</li>
+    </ul>
+  </section>
+
+  <section class="about-cta glow-card" data-reveal aria-labelledby="contact-title">
+    <div>
+      <h2 id="contact-title">Yash Oza</h2>
+      <p>Networking graduate, Mohawk College. Let's connect.</p>
+    </div>
+    <div class="hero-actions">
+      <a class="button primary" data-magnetic href="{{ linkedin_url }}" rel="noopener" target="_blank">LinkedIn</a>
+      <a class="button ghost" href="{{ github_url }}" rel="noopener" target="_blank">GitHub</a>
+    </div>
+  </section>
+</div>
+{% endblock %}

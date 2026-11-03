@@ -2,14 +2,32 @@
 
 import secrets
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from werkzeug.exceptions import HTTPException
 
 from app.config import PROJECT_ROOT, Config
 from app.csrf import current_csrf_token, rejected_csrf
 from app.database import initialize_database
+from app.demo import seed_demo_database
 from app.routes.devices import bp as devices_bp
+from app.routes.devices import start_scheduled_checks
 from app.routes.health import bp as health_bp
+from app.routes.site import bp as site_bp
+
+# Pages that only exist to change data. Demo mode refuses them even on GET.
+DEMO_BLOCKED_ENDPOINTS = frozenset(
+    {
+        "devices.new_device",
+        "devices.create_device",
+        "devices.edit_device",
+        "devices.confirm_delete",
+        "devices.remove_device",
+        "devices.check_device",
+        "devices.check_device_port",
+        "devices.check_all_devices",
+    }
+)
+READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def create_app(config_class=Config):
@@ -23,16 +41,38 @@ def create_app(config_class=Config):
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     _use_local_secret(app)
+    if app.config.get("DEMO_MODE"):
+        # The demo never touches the real inventory. It reads a fresh sample file.
+        app.config["DATABASE_PATH"] = seed_demo_database(app.config["DEMO_DATABASE_PATH"])
     initialize_database(app.config["DATABASE_PATH"])
     app.register_blueprint(health_bp)
     app.register_blueprint(devices_bp)
+    app.register_blueprint(site_bp)
 
     @app.after_request
     def add_security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "same-origin"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
         return response
+
+    @app.before_request
+    def keep_demo_read_only():
+        # Runs before the CSRF check, so a blocked form gets this page instead.
+        if not app.config.get("DEMO_MODE"):
+            return None
+        if request.method in READ_METHODS and request.endpoint not in DEMO_BLOCKED_ENDPOINTS:
+            return None
+        return render_template(
+            "error.html",
+            heading="Read-only demo",
+            message="This is a read-only demo with sample data. Adding, editing, deleting, and checks are turned off.",
+        ), 403
+
+    @app.context_processor
+    def inject_demo_mode():
+        return {"demo_mode": bool(app.config.get("DEMO_MODE"))}
 
     @app.before_request
     def protect_forms():
@@ -65,6 +105,7 @@ def create_app(config_class=Config):
             message="The request could not be completed.",
         ), 500
 
+    start_scheduled_checks(app)
     return app
 
 
@@ -77,6 +118,7 @@ def _use_local_secret(app):
     if app.config.get("TESTING"):
         return
     path = PROJECT_ROOT / "instance" / "secret_key"
+    key = ""
     try:
         if path.is_file():
             key = path.read_text(encoding="utf-8").strip()
@@ -85,6 +127,9 @@ def _use_local_secret(app):
             key = secrets.token_hex(32)
             path.write_text(key, encoding="utf-8")
     except OSError:
+        key = ""
+    # A failed write must not leave the fixed development string in use.
+    if not key:
+        app.config["SECRET_KEY"] = secrets.token_hex(32)
         return
-    if key:
-        app.config["SECRET_KEY"] = key
+    app.config["SECRET_KEY"] = key

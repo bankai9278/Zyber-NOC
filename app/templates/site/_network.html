@@ -1,0 +1,51 @@
+{# Decorative network illustration (not live data). Animated with CSS only. #}
+<svg class="net-illustration" viewBox="0 0 560 470" role="img" aria-labelledby="net-title">
+  <title id="net-title">Illustration of a network: internet, firewall, core switch, access switches and devices</title>
+  <defs>
+    <radialGradient id="node-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3ef0a5" stop-opacity=".35"/>
+      <stop offset="100%" stop-color="#3ef0a5" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="link-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3ef0a5" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#3ef0a5" stop-opacity=".15"/>
+    </linearGradient>
+  </defs>
+  <g class="net-grid">
+    {% for x in range(0, 561, 40) %}<line x1="{{ x }}" y1="0" x2="{{ x }}" y2="470"/>{% endfor %}
+    {% for y in range(0, 471, 40) %}<line x1="0" y1="{{ y }}" x2="560" y2="{{ y }}"/>{% endfor %}
+  </g>
+  {% set links = [
+    "M280 66 V122", "M280 162 V212",
+    "M280 252 C280 285 140 270 140 312", "M280 252 C280 285 420 270 420 312",
+    "M140 352 C140 378 80 372 80 400", "M140 352 C140 378 200 372 200 400",
+    "M420 352 C420 378 360 372 360 400", "M420 352 C420 378 480 372 480 400"
+  ] %}
+  <g class="net-links">
+    {% for d in links %}<path d="{{ d }}"/>{% endfor %}
+  </g>
+  <g class="net-pulses">
+    {% for d in links %}<path class="pulse pulse-{{ loop.index }}" d="{{ d }}"/>{% endfor %}
+  </g>
+  {% set nodes = [
+    (280, 46, 132, 40, "INTERNET", "wan"),
+    (280, 142, 132, 40, "FIREWALL", "edge"),
+    (280, 232, 150, 40, "CORE SWITCH", "core"),
+    (140, 332, 132, 40, "ACCESS A", "floor"),
+    (420, 332, 132, 40, "ACCESS B", "floor"),
+    (80, 420, 92, 36, "AP", "host"),
+    (200, 420, 92, 36, "PC", "host"),
+    (360, 420, 92, 36, "SERVER", "host"),
+    (480, 420, 92, 36, "PRINTER", "host")
+  ] %}
+  <g class="net-nodes">
+    {% for cx, cy, w, h, label, kind in nodes %}
+      <g class="node node-{{ kind }} node-{{ loop.index }}">
+        <circle class="node-halo" cx="{{ cx }}" cy="{{ cy }}" r="{{ w * 0.55 }}" fill="url(#node-glow)"/>
+        <rect x="{{ cx - w / 2 }}" y="{{ cy - h / 2 }}" width="{{ w }}" height="{{ h }}" rx="6"/>
+        <circle class="node-led" cx="{{ cx - w / 2 + 14 }}" cy="{{ cy }}" r="3.2"/>
+        <text x="{{ cx - w / 2 + 26 }}" y="{{ cy + 4 }}">{{ label }}</text>
+      </g>
+    {% endfor %}
+  </g>
+</svg>

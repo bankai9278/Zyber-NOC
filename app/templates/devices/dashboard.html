@@ -3,106 +3,220 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+  {% macro device_head() %}
+    <thead>
+      <tr>
+        <th scope="col">Device name</th>
+        <th scope="col">IP address</th>
+        <th scope="col">Device type</th>
+        <th scope="col">Location</th>
+        <th scope="col">VLAN</th>
+        <th scope="col">Status</th>
+        <th scope="col">Response time</th>
+        <th scope="col">Uptime</th>
+        <th scope="col">Average response</th>
+        <th scope="col">Last checked</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+  {% endmacro %}
+
+  {% macro device_rows(device_list) %}
+    {% for device in device_list %}
+      <tr>
+        <td data-label="Device name">
+          <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a>
+          <span class="secondary">{{ device.description or "No description" }}</span>
+          <div class="history-bar history-bar-compact">
+            {% for block in device.history_bar.blocks %}
+              <span class="history-block history-{{ block.kind }}" title="{{ block.title }}"></span>
+            {% endfor %}
+          </div>
+        </td>
+        <td data-label="IP address"><span class="visually-hidden">IP address: </span><span class="mono">{{ device.ip_address }}</span></td>
+        <td data-label="Device type"><span class="visually-hidden">Device type: </span>{{ device.device_type }}</td>
+        <td data-label="Location"><span class="visually-hidden">Location: </span>{{ device.location_label }}</td>
+        <td data-label="VLAN"><span class="visually-hidden">VLAN: </span>{{ device.vlan_label }}</td>
+        <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ device.status_class }}">{{ device.status_label }}</span></td>
+        <td data-label="Response time"><span class="visually-hidden">Response time: </span><span class="mono">{{ device.response_label }}</span></td>
+        <td data-label="Uptime"><span class="visually-hidden">Uptime: </span>{{ device.uptime_label }}</td>
+        <td data-label="Average response"><span class="visually-hidden">Average response: </span><span class="mono">{{ device.average_response_label }}</span></td>
+        <td data-label="Last checked"><span class="visually-hidden">Last checked: </span>{{ device.checked_label }}</td>
+        <td data-label="Actions">
+          <div class="row-actions">
+            {% if demo_mode %}
+            <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">View</a>
+            {% else %}
+            <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="next" value="dashboard">
+              <button type="submit" data-loading-label="Checking">Check now</button>
+            </form>
+            <a href="{{ url_for('devices.edit_device', device_id=device.id) }}">Edit</a>
+            <a href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete</a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+  {% endmacro %}
+
   <div class="page-heading">
     <div>
+      <p class="eyebrow">Network monitoring dashboard</p>
       <h1>Dashboard</h1>
+      {% if demo_mode %}
+      <p class="lede">Sample data for this read-only demo. Checks are turned off, so nothing here is a live reading.</p>
+      {% else %}
       <p class="lede">Check now pings one saved device. Check all pings up to 20 saved devices, two at a time.</p>
+      {% endif %}
     </div>
-    <a class="button" href="{{ url_for('devices.new_device') }}">Add device</a>
+    <div class="row-actions">
+      {% if devices and not demo_mode %}
+        <form class="inline-form" method="post" action="{{ url_for('devices.check_all_devices') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" data-loading-label="Checking devices">Check all</button>
+        </form>
+      {% endif %}
+      <button type="button" id="refresh-status">Refresh status</button>
+      {% if not demo_mode %}
+      <a class="button primary" href="{{ url_for('devices.new_device') }}">Add device</a>
+      {% endif %}
+    </div>
   </div>
 
-  <section aria-labelledby="summary-heading">
+  <section class="panel" aria-labelledby="changes-heading">
+    <h2 id="changes-heading" class="section-title">Recent status changes</h2>
+    {% if status_changes %}
+      <ul class="changes">
+        {% for change in status_changes %}
+          <li>{{ change.device_name }} changed from {{ change.previous_label }} to {{ change.new_label }} at {{ change.checked_label }}.</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No status changes yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="summary-heading">
     <h2 id="summary-heading" class="section-title">Summary</h2>
     <ul class="summary">
-      <li>
-        <p class="summary-value" data-count="total">{{ summary.total }}</p>
+      <li class="stat-total">
         <p class="summary-label">Total devices</p>
+        <p class="summary-value" data-count="total">{{ summary.total }}</p>
       </li>
-      <li>
-        <p class="summary-value" data-count="online">{{ summary.online }}</p>
+      <li class="stat-online">
         <p class="summary-label">Online</p>
+        <p class="summary-value" data-count="online">{{ summary.online }}</p>
       </li>
-      <li>
-        <p class="summary-value" data-count="offline">{{ summary.offline }}</p>
+      <li class="stat-offline">
         <p class="summary-label">Offline</p>
+        <p class="summary-value" data-count="offline">{{ summary.offline }}</p>
       </li>
-      <li>
-        <p class="summary-value" data-count="unknown">{{ summary.unknown }}</p>
+      <li class="stat-unknown">
         <p class="summary-label">Unknown</p>
+        <p class="summary-value" data-count="unknown">{{ summary.unknown }}</p>
       </li>
-      <li>
-        <p class="summary-value" data-count="error">{{ summary.error }}</p>
+      <li class="stat-error">
         <p class="summary-label">Error</p>
+        <p class="summary-value" data-count="error">{{ summary.error }}</p>
       </li>
     </ul>
   </section>
 
-  <section
-    id="device-panel"
-    aria-labelledby="devices-heading"
-    data-dashboard
-    data-refresh-url="{{ url_for('devices.dashboard_data') }}"
-    data-csrf-token="{{ csrf_token }}"
-  >
-    <div class="section-heading">
-      <h2 id="devices-heading">Devices</h2>
-      <div class="row-actions">
-        {% if devices %}
-          <form class="inline-form" method="post" action="{{ url_for('devices.check_all_devices') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" data-loading-label="Checking devices">Check all</button>
-          </form>
-        {% endif %}
-        <button type="button" id="refresh-status">Refresh status</button>
+  <div class="dashboard-split">
+    <section class="panel"
+      id="device-panel"
+      aria-labelledby="devices-heading"
+      data-dashboard
+      data-refresh-url="{{ url_for('devices.dashboard_data') }}{% if request.query_string %}?{{ request.query_string.decode() }}{% endif %}"
+      data-csrf-token="{{ csrf_token }}"
+    >
+      <div class="section-heading">
+        <h2 id="devices-heading">Devices</h2>
       </div>
-    </div>
-    <p id="dashboard-status" class="status-note" aria-live="polite">Showing saved monitoring results.</p>
-    <p id="dashboard-error" class="error" role="alert" hidden></p>
+      <p id="dashboard-status" class="status-note" aria-live="polite">Showing saved monitoring results.</p>
+      <p id="dashboard-error" class="error" role="alert" hidden></p>
 
-    <p id="dashboard-empty" {% if devices %}hidden{% endif %}>No devices yet. Add a device to start the inventory.</p>
+      <form class="filter-form" method="get" action="{{ url_for('devices.inventory') }}">
+        <div>
+          <label for="filter-location">Location</label>
+          <input id="filter-location" name="location" value="{{ device_filter.location }}" maxlength="100">
+        </div>
+        <div>
+          <label for="filter-vlan">VLAN</label>
+          <input id="filter-vlan" name="vlan" value="{{ device_filter.vlan }}" inputmode="numeric">
+        </div>
+        <div>
+          <label for="group-by">Group by</label>
+          <select id="group-by" name="group">
+            <option value="" {% if group_by == "none" %}selected{% endif %}>None</option>
+            <option value="location" {% if group_by == "location" %}selected{% endif %}>Location</option>
+            <option value="vlan" {% if group_by == "vlan" %}selected{% endif %}>VLAN</option>
+          </select>
+        </div>
+        <button type="submit">Filter</button>
+        <a href="{{ url_for('devices.inventory') }}">Clear</a>
+      </form>
+      {% if device_filter.error %}
+        <p class="error" role="alert">{{ device_filter.error }}</p>
+      {% elif device_filter.active %}
+        <p class="status-note">The table shows devices that match the filter. Summary counts include every saved device.</p>
+      {% endif %}
 
-    <div class="table-wrap" {% if not devices %}hidden{% endif %} id="device-table-wrap">
-      <table id="device-table">
-        <caption>Authorized devices and their latest saved check</caption>
-        <thead>
-          <tr>
-            <th scope="col">Device name</th>
-            <th scope="col">IP address</th>
-            <th scope="col">Device type</th>
-            <th scope="col">Status</th>
-            <th scope="col">Response time</th>
-            <th scope="col">Last checked</th>
-            <th scope="col"><span class="visually-hidden">Actions</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for device in devices %}
-            <tr>
-              <td data-label="Device name">
-                <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a>
-                <span class="secondary">{{ device.description or "No description" }}</span>
-              </td>
-              <td data-label="IP address"><span class="visually-hidden">IP address: </span>{{ device.ip_address }}</td>
-              <td data-label="Device type"><span class="visually-hidden">Device type: </span>{{ device.device_type }}</td>
-              <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ device.status }}">{{ device.status_label }}</span></td>
-              <td data-label="Response time"><span class="visually-hidden">Response time: </span>{{ device.response_label }}</td>
-              <td data-label="Last checked"><span class="visually-hidden">Last checked: </span>{{ device.checked_label }}</td>
-              <td data-label="Actions">
-                <div class="row-actions">
-                  <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    <input type="hidden" name="next" value="dashboard">
-                    <button type="submit" data-loading-label="Checking">Check now</button>
-                  </form>
-                  <a href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete</a>
-                </div>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+      <p id="dashboard-empty" {% if devices %}hidden{% endif %}>{% if device_filter.active %}No saved devices match this filter.{% else %}No devices yet. Add a device to start the inventory.{% endif %}</p>
+
+      <div id="device-groups" {% if not groups %}hidden{% endif %}>
+        {% for group in groups or [] %}
+          <details class="device-group" open>
+            <summary>{{ group.summary }}</summary>
+            <div class="table-wrap">
+              <table>
+                <caption>{{ group.summary }}</caption>
+                {{ device_head() }}
+                <tbody>
+                  {{ device_rows(group.devices) }}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        {% endfor %}
+      </div>
+
+      <div class="table-wrap" {% if groups or not devices %}hidden{% endif %} id="device-table-wrap">
+        <table id="device-table">
+          <caption>Authorized devices and their latest saved check</caption>
+          {{ device_head() }}
+          <tbody>
+            {% if not groups %}
+              {{ device_rows(devices) }}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="incidents-heading">
+      <div class="section-heading">
+        <h2 id="incidents-heading">Recent incidents</h2>
+      </div>
+      <p class="status-note">Saved status changes into offline or error. Duration uses the next saved return to online.</p>
+      <p id="incident-empty" {% if incidents %}hidden{% endif %}>No incidents recorded yet.</p>
+      <ul id="incident-list" class="incident-list" {% if not incidents %}hidden{% endif %}>
+        {% for incident in incidents or [] %}
+          <li class="incident incident-{{ incident.new_status }}">
+            <p class="incident-device">{{ incident.device_name }}</p>
+            <p class="mono">{{ incident.change_label }}</p>
+            <p>{{ incident.checked_label }}</p>
+            <p class="incident-duration">{{ incident.duration_label }}</p>
+            {% if incident.cause_label %}
+              <p class="incident-cause">{{ incident.cause_label }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  </div>
 {% endblock %}
 
 {% block scripts %}

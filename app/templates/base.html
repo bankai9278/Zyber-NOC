@@ -3,20 +3,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Network Monitoring Dashboard{% endblock %}</title>
+  <title>{% block title %}Zyber NOC{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/theme-terminal.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo-yo.svg') }}">
 </head>
-<body>
+<body class="{% block body_class %}page-app{% endblock %}">
+  <div class="fx-spotlight" aria-hidden="true"></div>
+  <div class="fx-progress" aria-hidden="true"><span></span></div>
   <a class="skip-link" href="#content">Skip to content</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="site-title" href="{{ url_for('devices.inventory') }}">Network Monitoring</a>
+      <div class="brand-lockup">
+        <a class="site-title" href="{{ url_for('site.home') }}"><img class="brand-logo" src="{{ url_for('static', filename='img/logo-yo.svg') }}" width="24" height="24" alt="Yash Oza logo"><span class="brand-word"><span class="brand-mark">ZYBER</span><span class="brand-noc">NOC</span></span></a>
+        {% block brand_tagline %}{% endblock %}
+      </div>
       <nav aria-label="Primary">
+        <a href="{{ url_for('site.home') }}" {% if request.endpoint == 'site.home' %}aria-current="page"{% endif %}>Home</a>
         <a href="{{ url_for('devices.inventory') }}" {% if request.endpoint == 'devices.inventory' %}aria-current="page"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('devices.topology') }}" {% if request.endpoint == 'devices.topology' %}aria-current="page"{% endif %}>Topology</a>
+        <a href="{{ url_for('site.reports') }}" {% if request.endpoint == 'site.reports' %}aria-current="page"{% endif %}>Reports</a>
+        <a href="{{ url_for('site.about') }}" {% if request.endpoint == 'site.about' %}aria-current="page"{% endif %}>About</a>
+        {% if not demo_mode %}
         <a href="{{ url_for('devices.new_device') }}" {% if request.endpoint == 'devices.new_device' %}aria-current="page"{% endif %}>Add device</a>
+        {% endif %}
       </nav>
     </div>
   </header>
+  {% if demo_mode %}
+  <p class="demo-banner" role="note"><strong>Read-only demo.</strong> Every device, status, and number here is sample data, not a live reading. Adding, editing, deleting, and checks are turned off.</p>
+  {% endif %}
   <main id="content">
     {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -29,6 +46,35 @@
     {% endwith %}
     {% block content %}{% endblock %}
   </main>
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <p class="footer-title"><span class="brand-word"><span class="brand-mark">ZYBER</span><span class="brand-noc">NOC</span></span></p>
+        {% if demo_mode %}
+        <p class="footer-note">A read-only demo of a local Flask console. It shows sample data and runs no checks.</p>
+        {% else %}
+        <p class="footer-note">A local Flask console. Runs on 127.0.0.1 and checks only saved devices.</p>
+        {% endif %}
+        <p class="footer-built"><img class="footer-logo" src="{{ url_for('static', filename='img/logo-yo.svg') }}" width="24" height="24" alt="Yash Oza logo"><span>Built by Yash Oza</span></p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <div>
+          <p class="footer-head">Console</p>
+          <a href="{{ url_for('devices.inventory') }}">Dashboard</a>
+          <a href="{{ url_for('devices.topology') }}">Topology</a>
+          <a href="{{ url_for('site.reports') }}">Reports</a>
+        </div>
+        <div>
+          <p class="footer-head">Project</p>
+          <a href="{{ url_for('site.about') }}">About</a>
+          <a href="{{ github_url }}" rel="noopener" target="_blank">GitHub</a>
+          <a href="{{ linkedin_url }}" rel="noopener" target="_blank">LinkedIn</a>
+        </div>
+      </nav>
+    </div>
+    <p class="footer-base mono">{% if demo_mode %}sample data &middot; Python &middot; Flask &middot; no checks{% else %}127.0.0.1:5000 &middot; Python &middot; Flask &middot; Windows ping{% endif %}</p>
+  </footer>
   {% block scripts %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/premium.js') }}"></script>
 </body>
 </html>
