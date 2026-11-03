@@ -308,6 +308,8 @@ def topology_map(devices):
         nodes.append(
             {
                 "id": device["id"],
+                "parent_id": None,
+                "status": status,
                 "name": device.get("name") or "",
                 "short_name": _clip_text(device.get("name") or "", 22),
                 "ip_address": device.get("ip_address") or "",
@@ -324,8 +326,12 @@ def topology_map(devices):
         for child in kids:
             place(child, depth + 1, child_left, next_seen)
             child_node = next(item for item in nodes if item["id"] == child["id"])
+            child_node["parent_id"] = device["id"]
             edges.append(
                 {
+                    "parent_id": device["id"],
+                    "child_id": child["id"],
+                    "status": child_node["status"],
                     "x1": node_x + _NODE_WIDTH / 2,
                     "y1": node_y + _NODE_HEIGHT,
                     "x2": child_node["x"] + _NODE_WIDTH / 2,

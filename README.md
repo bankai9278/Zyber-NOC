@@ -51,7 +51,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
 - Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
 - Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
-- Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` stays off when the system asks for reduced motion.
+- Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` and `effects.js` stays off when the system asks for reduced motion.
 - The about page at `/about` is written in first person by Yash Oza. It covers why the project exists, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a self-drawn SVG of that core, distribution, and access hierarchy, a skills list, and what is planned next. Planned items, such as SNMP polling, alerting, and certifications, are described as goals, not as finished work.
 - The `YO` initials logo is `app/static/img/logo-yo.svg`, a hand-written SVG. It is the favicon, appears next to ZYBER NOC in the header, in the footer as Built by Yash Oza, and larger on the about page.
 
@@ -103,7 +103,7 @@ flowchart TD
 | `app/presentation.py` | Turns saved values into labels, Toronto times, the topology map, the latency chart, and the status bars |
 | `app/csrf.py` | Checks the form token on submissions that change data |
 | `app/templates/` | Server-rendered HTML, including `app/templates/site/` for home, reports, and about |
-| `app/static/` | `style.css`, `theme-terminal.css`, `premium.css`, the dashboard and form scripts, `premium.js`, the `logo-yo.svg` initials logo (also the favicon), the older `favicon.svg`, and three static page images |
+| `app/static/` | `style.css`, `theme-terminal.css`, `premium.css`, `effects.css`, the dashboard and form scripts, `premium.js`, `effects.js`, the `grain.svg` texture, the `logo-yo.svg` initials logo (also the favicon), the older `favicon.svg`, and three static page images |
 
 The database has three tables:
 
@@ -118,7 +118,7 @@ The database has three tables:
 | Python 3.11 or newer | The application, database access, IP validation, ping command, and TCP connection are all Python. SQLite, subprocess, sockets, and time zones come with Python. |
 | Flask 3.1.3 | Serves the local pages and forms without a separate frontend application. |
 | SQLite | Stores the inventory and check history in one file on this PC. No database server is required. |
-| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `premium.css` is the home, reports, and about layout and loads last. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. |
+| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `premium.css` is the home, reports, and about layout. `effects.css` loads last and holds the page transitions, texture, topology animation, boot intro and scroll story. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. |
 | pytest 9.1.1 | Runs automated tests. Ping tests use stand-in command output, and TCP tests use a stand-in socket, so the test run does not send real network traffic. |
 
 Flask also installs its required libraries, including Werkzeug and Jinja2. Those are not listed separately in `requirements.txt`.

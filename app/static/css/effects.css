@@ -1,0 +1,156 @@
+/* ==========================================================================
+   effects.css - the design pass: page transitions, texture, living topology,
+   boot intro, scroll story, hero field, cursor ring and the sound toggle.
+   Loads after premium.css. No external assets. Every moving part is switched
+   off in the reduced-motion block at the end of this file.
+   ========================================================================== */
+
+/* ---------- Page transitions (browsers without support just load) ---------- */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation: vt-out .16s ease-in both; }
+::view-transition-new(root) { animation: vt-in .32s var(--ease) both; }
+.site-header { view-transition-name: site-header; }
+::view-transition-group(site-header) { animation-duration: 0s; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* ---------- Texture: faint scanlines and film grain over the page ---------- */
+.fx-texture {
+  position: fixed; inset: 0; z-index: 30; pointer-events: none;
+  background:
+    repeating-linear-gradient(to bottom, rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px),
+    url("../img/grain.svg");
+  background-size: auto, 180px 180px;
+  opacity: .4;
+}
+
+/* ---------- Living topology ---------- */
+.topology-flow {
+  stroke: var(--mint-2); stroke-width: 4px; stroke-linecap: round;
+  stroke-dasharray: 1.5 22.5; stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 4px rgba(62, 240, 165, .9));
+  animation: topo-flow 1.6s linear infinite;
+  pointer-events: none;
+}
+@keyframes topo-flow { to { stroke-dashoffset: -24; } }
+.topology-edge[data-status="offline"], .topology-edge[data-status="error"] { stroke-dasharray: 5 5; }
+.topology-edge[data-status="offline"] { stroke: rgba(255, 77, 106, .55); }
+.topology-edge[data-status="error"] { stroke: rgba(255, 165, 61, .55); }
+.topology-svg rect.topo-halo,
+.topology-svg a:hover rect.topo-halo {
+  fill: none; stroke: var(--offline); stroke-width: 2px; filter: none;
+  transform-box: fill-box; transform-origin: center;
+  animation: topo-pulse 1.8s ease-out infinite;
+}
+@keyframes topo-pulse {
+  0% { opacity: .9; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.08, 1.25); }
+}
+.topology-svg .topology-edge, .topology-svg .topology-flow, .topology-svg .topo-node { transition: opacity .2s var(--ease); }
+.topology-svg.has-path .topo-node:not(.is-path),
+.topology-svg.has-path .topology-edge:not(.is-path),
+.topology-svg.has-path .topology-flow { opacity: .28; }
+.topology-svg .topology-edge.is-path { stroke: var(--mint); stroke-width: 3px; }
+.topology-svg .topo-node.is-path rect:not(.topo-halo) { stroke: var(--mint); }
+.topology-svg .topo-node:focus-visible { outline: none; }
+.topology-svg .topo-node:focus-visible rect:not(.topo-halo) { stroke: var(--heading); stroke-width: 3px; }
+.topology-note { margin: .75rem 0 0; color: var(--muted); font-size: .8rem; }
+
+/* ---------- Boot intro (home page, once per session) ---------- */
+.boot {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  background: #040706;
+  transition: opacity .45s var(--ease), visibility .45s;
+}
+.boot[hidden] { display: none; }
+.boot.is-leaving { opacity: 0; visibility: hidden; }
+.boot-screen { width: min(34rem, calc(100vw - 2rem)); color: var(--text); font-size: .9rem; line-height: 1.7; }
+.boot-line { margin: 0; opacity: 0; transform: translateY(4px); transition: opacity .18s ease, transform .18s ease; }
+.boot-line.is-on { opacity: 1; transform: none; }
+.boot-ok { color: var(--mint); }
+.boot-warn { color: var(--error); }
+.boot-ready { margin-top: .5rem; color: var(--heading); }
+.boot-skip { margin-top: 1.5rem; }
+/* Hold the hero back until the intro fades, then let it reveal. */
+html.is-booting .hero [data-reveal].is-visible { opacity: 0; transform: translateY(26px); filter: blur(4px); }
+
+/* ---------- Scroll story on the home page ---------- */
+.story-lede { margin: -1.5rem 0 2.5rem; max-width: 40rem; color: #a3b5ad; }
+.story { position: relative; --story: 1; --story-px: 0px; }
+.story-steps.how-grid { grid-template-columns: minmax(0, 1fr); gap: 2.5rem; max-width: 46rem; padding-left: 4rem; }
+.story-rail {
+  position: absolute; top: .5rem; bottom: .5rem; left: 1.4rem; width: 2px;
+  background: var(--border); border-radius: 2px;
+}
+.story-fill {
+  position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, var(--mint), var(--cyan));
+  box-shadow: 0 0 10px rgba(62, 240, 165, .5);
+  transform-origin: 50% 0; transform: scaleY(var(--story));
+}
+.story-packet {
+  position: absolute; left: 50%; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px;
+  border-radius: 50%; background: var(--mint); box-shadow: 0 0 0 4px rgba(62, 240, 165, .18), 0 0 14px var(--mint);
+  transform: translateY(var(--story-px));
+}
+html:not(.fx-story) .story-packet { display: none; }
+.story-step > .story-dot {
+  position: absolute; left: -2.95rem; top: 1.7rem; width: 10px; height: 10px; z-index: 2;
+  border-radius: 50%; border: 2px solid var(--button-border); background: var(--page);
+  transition: background .3s var(--ease), border-color .3s var(--ease), box-shadow .3s var(--ease);
+}
+.story-step.is-active > .story-dot, html:not(.fx-story) .story-step > .story-dot {
+  background: var(--mint); border-color: var(--mint); box-shadow: 0 0 10px var(--mint);
+}
+html.fx-story .story-step { transition: border-color .4s var(--ease), opacity .8s var(--ease), transform .8s var(--ease), filter .8s var(--ease); }
+html.fx-story .story-step.is-active { border-color: rgba(62, 240, 165, .4); }
+
+/* ---------- Hero network field (canvas, drawn by effects.js) ---------- */
+.hero-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; opacity: .7; }
+html.fx-field .hero-field { display: block; }
+
+/* ---------- Cursor ring (mouse and pen only) ---------- */
+.fx-cursor { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .fx-cursor {
+    display: block; position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none;
+    width: 30px; height: 30px; margin: -15px 0 0 -15px;
+    border: 1px solid rgba(62, 240, 165, .55); border-radius: 50%;
+    box-shadow: 0 0 12px rgba(62, 240, 165, .25);
+    transform: translate3d(var(--mx), var(--my), 0);
+    opacity: 0; transition: opacity .25s ease, width .2s var(--ease), height .2s var(--ease), margin .2s var(--ease), border-color .2s;
+  }
+  .fx-cursor::before, .fx-cursor::after {
+    content: ""; position: absolute; left: 50%; top: 50%; background: rgba(62, 240, 165, .7);
+  }
+  .fx-cursor::before { width: 1px; height: 8px; margin: -4px 0 0 -.5px; }
+  .fx-cursor::after { width: 8px; height: 1px; margin: -.5px 0 0 -4px; }
+  html.fx-pointer .fx-cursor { opacity: 1; }
+  html.fx-cursor-hot .fx-cursor { width: 44px; height: 44px; margin: -22px 0 0 -22px; border-color: var(--mint); }
+}
+
+/* ---------- Interface sound toggle (footer, off by default) ---------- */
+.footer-sound { margin: .75rem 0 0; }
+.sound-toggle { padding: .25rem .65rem; font-size: .75rem; }
+.sound-toggle[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
+
+/* ---------- Phone ---------- */
+@media (max-width: 42rem) {
+  .story-steps.how-grid { padding-left: 2.6rem; gap: 1.25rem; }
+  .story-rail { left: .9rem; }
+  .story-step > .story-dot { left: -2.05rem; }
+  .story-lede { margin-top: -.75rem; margin-bottom: 1.5rem; }
+  .boot-screen { font-size: .82rem; }
+  .fx-texture { opacity: .35; }
+}
+
+/* ---------- Reduced motion: no transitions, no loops, no intro ---------- */
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+  .topology-flow { animation: none !important; display: none; }
+  .topology-svg rect.topo-halo { animation: none !important; opacity: .6; transform: none; }
+  .boot { display: none !important; }
+  html.is-booting .hero [data-reveal].is-visible { opacity: 1; transform: none; filter: none; }
+  .hero-field, .fx-cursor, .story-packet { display: none !important; }
+}

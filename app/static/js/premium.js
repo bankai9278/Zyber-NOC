@@ -88,6 +88,11 @@
     var out = typed.closest(".hero-terminal") ? typed.closest(".hero-terminal").querySelector(".term-out") : null;
     if (out) out.style.setProperty("visibility", "hidden");
     setTimeout(function step() {
+      /* Wait for the boot intro (effects.js) to finish before typing. */
+      if (root.classList.contains("is-booting")) {
+        document.addEventListener("zyber:booted", function () { setTimeout(step, 400); }, { once: true });
+        return;
+      }
       i += 1;
       typed.textContent = text.slice(0, i);
       if (i < text.length) setTimeout(step, 45 + Math.random() * 55);

@@ -5,8 +5,29 @@
 {% block brand_tagline %}<p class="brand-tagline">Network operations centre, built from ping to topology.</p>{% endblock %}
 {% block body_class %}page-site page-home{% endblock %}
 
+{% block overlay %}
+{# Start-up intro. Hidden in the HTML; effects.js shows it once per browser session
+   and only when motion is allowed. Every line is built from saved totals. #}
+<div class="boot" id="boot" role="region" aria-label="Start-up intro" hidden>
+  <div class="boot-screen mono">
+    <p class="boot-line"><span class="boot-ok">[ ok ]</span> starting zyber noc console</p>
+    <p class="boot-line"><span class="boot-ok">[ ok ]</span> opening {% if demo_mode %}sample database{% else %}local sqlite database{% endif %}</p>
+    <p class="boot-line"><span class="boot-ok">[ ok ]</span> loading inventory: {{ summary.total }} saved {{ "device" if summary.total == 1 else "devices" }}</p>
+    <p class="boot-line"><span class="boot-ok">[ ok ]</span> reading {{ totals.checks }} saved {{ "result" if totals.checks == 1 else "results" }}</p>
+    {% if demo_mode %}
+    <p class="boot-line"><span class="boot-warn">[ -- ]</span> read-only demo: no checks will run</p>
+    {% else %}
+    <p class="boot-line"><span class="boot-ok">[ ok ]</span> serving on 127.0.0.1 only</p>
+    {% endif %}
+    <p class="boot-line boot-ready">ready<span class="caret" aria-hidden="true"></span></p>
+    <button type="button" class="boot-skip" data-boot-skip>Skip intro</button>
+  </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <section class="hero" aria-labelledby="hero-title">
+  <canvas class="hero-field" aria-hidden="true"></canvas>
   <div class="hero-mesh" aria-hidden="true"></div>
   <div class="wrap hero-grid">
     <div class="hero-copy">
@@ -27,7 +48,7 @@
       </div>
       <div class="hero-actions" data-reveal>
         <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open dashboard</a>
-        <a class="button ghost" href="{{ url_for('site.reports') }}">View reports</a>
+        <a class="button ghost" data-magnetic href="{{ url_for('site.reports') }}">View reports</a>
       </div>
     </div>
     <div class="hero-art" data-reveal>
@@ -89,28 +110,36 @@
   <div class="wrap">
     <p class="section-kicker" data-reveal>// how it works</p>
     <h2 id="how-title" class="section-title-lg" data-reveal>Four steps from IP address to insight.</h2>
-    <ol class="how-grid">
-      <li class="how-card glow-card" data-reveal>
+    <p class="story-lede" data-reveal>Follow one check from a saved address to the dashboard. The line fills in as you scroll.</p>
+    <div class="story" data-story>
+      <div class="story-rail" aria-hidden="true"><span class="story-fill"></span><span class="story-packet"></span></div>
+    <ol class="how-grid story-steps">
+      <li class="how-card glow-card story-step" data-reveal>
+        <span class="story-dot" aria-hidden="true"></span>
         <span class="how-num mono">01</span>{{ icon("add") }}
         <h3>Save a device</h3>
         <p>Add a name and an IP. Broadcast, multicast, unspecified and reserved addresses are refused before anything is stored.</p>
       </li>
-      <li class="how-card glow-card" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal>
+        <span class="story-dot" aria-hidden="true"></span>
         <span class="how-num mono">02</span>{{ icon("ping") }}
         <h3>Check it</h3>
         <p>Windows <code>ping -n 5</code> measures min, median, max, jitter and loss. TCP checks try one allowed port.</p>
       </li>
-      <li class="how-card glow-card" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal>
+        <span class="story-dot" aria-hidden="true"></span>
         <span class="how-num mono">03</span>{{ icon("store") }}
         <h3>Keep every result</h3>
         <p>Each check is written to SQLite with parameterized SQL. A change in status is saved as its own event.</p>
       </li>
-      <li class="how-card glow-card" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal>
+        <span class="story-dot" aria-hidden="true"></span>
         <span class="how-num mono">04</span>{{ icon("see") }}
         <h3>See the story</h3>
         <p>Uptime, the 90-day bar, latency bands, incidents, the topology tree and reports are all drawn from those rows.</p>
       </li>
     </ol>
+    </div>
   </div>
 </section>
 
@@ -177,7 +206,7 @@
     <div class="hero-actions">
       <a class="button primary" data-magnetic href="{{ url_for('devices.new_device') }}">Add a device</a>
     {% endif %}
-      <a class="button ghost" href="{{ url_for('site.about') }}">Read the story</a>
+      <a class="button ghost" data-magnetic href="{{ url_for('site.about') }}">Read the story</a>
     </div>
   </div>
 </section>
