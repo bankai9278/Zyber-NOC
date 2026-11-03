@@ -11,6 +11,9 @@
   var tableWrap = document.getElementById("device-table-wrap");
   var tableBody = document.querySelector("#device-table tbody");
   var groupsRoot = document.getElementById("device-groups");
+  // The read-only demo marks its JSON with sample_data. Rows rebuilt from it
+  // get a View link, matching the server-rendered rows, instead of actions.
+  var sampleData = false;
 
   refreshButton.addEventListener("click", refreshStatus);
 
@@ -46,6 +49,7 @@
   }
 
   function renderDashboard(data) {
+    sampleData = data.sample_data === true;
     ["total", "online", "offline", "unknown", "error"].forEach(function (key) {
       var value = document.querySelector('[data-count="' + key + '"]');
       value.textContent = String(data.summary[key]);
@@ -233,6 +237,14 @@
     cell.setAttribute("data-label", "Actions");
     var actions = document.createElement("div");
     actions.className = "row-actions";
+    if (sampleData) {
+      var view = document.createElement("a");
+      view.href = "/devices/" + device.id;
+      view.textContent = "View";
+      actions.appendChild(view);
+      cell.appendChild(actions);
+      return cell;
+    }
     actions.appendChild(checkForm(device));
     var edit = document.createElement("a");
     edit.href = "/devices/" + device.id + "/edit";

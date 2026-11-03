@@ -450,3 +450,185 @@ html.is-scrolled .page-home .header-inner {
 @media (prefers-reduced-motion: reduce) {
   .tour-animate { animation: none; }
 }
+
+/* ==========================================================================
+   Phone layout (about 360-430px wide, up to 42rem).
+   Loaded last so it wins over the desktop rules above. CSS only: no script
+   changes, no inline styles. Wide diagrams keep a readable size and scroll
+   sideways inside their own box instead of shrinking to unreadable text.
+   ========================================================================== */
+.scroll-hint { display: none; }
+/* The visually hidden labels in table cells are position: absolute. Without a
+   positioned .table-wrap they escape its scroll box and widen the whole page. */
+.table-wrap { position: relative; }
+
+@media (max-width: 42rem) {
+  html { scroll-padding-top: 1rem; }
+
+  /* Header: not sticky on phones (it would cover a third of the screen),
+     brand on top, nav links wrap onto a second row instead of running off. */
+  .site-header,
+  html.is-scrolled .site-header { position: relative; box-shadow: none; }
+  .site-header .header-inner,
+  html.is-scrolled .site-header .header-inner,
+  .page-site .header-inner,
+  .page-home .header-inner,
+  html.is-scrolled .page-home .header-inner {
+    height: auto; min-height: 0; padding: .6rem 1rem .5rem; gap: .35rem;
+  }
+  html.is-scrolled .site-title { font-size: inherit; }
+  .site-header nav { flex-wrap: wrap; gap: .15rem .1rem; margin-left: -.45rem; }
+  .site-header nav a { padding: .45rem .45rem; font-size: .8rem; }
+  .site-header nav a::after { left: .45rem; right: .45rem; }
+  .brand-tagline { font-size: .68rem; }
+
+  /* Demo banner */
+  .demo-banner { padding: .5rem 1rem; font-size: .8rem; line-height: 1.45; }
+  .demo-tour-button { display: inline-block; margin: .35rem 0 0; }
+
+  /* Page gutters */
+  main { padding: 1.1rem 1rem 2.5rem; }
+  .wrap { padding: 0 1rem; }
+  .page-site main { padding: 0; }
+  h1 { font-size: 1.4rem; }
+  .page-heading { margin-bottom: 1rem; padding-bottom: 1rem; }
+
+  /* iOS zooms the page when a focused field is under 16px. */
+  input, select, textarea { font-size: 16px; }
+
+  /* Buttons wrap instead of pushing the page wider. */
+  .row-actions { flex-wrap: wrap; }
+
+  .panel { padding: .85rem; }
+  .panel > h2,
+  .panel > .section-heading { margin: -.85rem -.85rem .85rem; padding: .6rem .85rem; }
+  .panel > .section-heading {
+    flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .35rem 1rem;
+  }
+
+  /* Hover glows do nothing on touch and their 1px halo can cause sideways scroll. */
+  .glow-card::before, .glow-card::after, .panel::before, .summary li::before { display: none; }
+
+  /* Dashboard: summary as a 2-column grid, total across the top. */
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+  .summary li { padding: .7rem .8rem; }
+  .summary li.stat-total { grid-column: 1 / -1; }
+  .summary-value { font-size: 1.6rem; margin-top: .2rem; }
+  .detail-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .detail-stats .summary-value { font-size: 1.2rem; }
+
+  /* Recent status changes: heading above the list, one change per line. */
+  .panel[aria-labelledby="changes-heading"] { flex-direction: column; align-items: stretch; gap: .4rem; padding: .7rem .85rem; }
+  .changes { flex-direction: column; gap: .35rem; font-size: .82rem; }
+
+  /* Filters: two fields per row, full-width controls. */
+  .filter-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; align-items: end; }
+  .filter-form input, .filter-form select { width: 100%; }
+  .filter-form > div:nth-of-type(3) { grid-column: 1 / -1; }
+  .filter-form > button { width: 100%; }
+  .filter-form > a { justify-self: start; }
+
+  /* Tables become cards: one card per row, label on the left, value on the right. */
+  .table-wrap { overflow: visible; background: none; border: 0; }
+  table, table tbody, table caption { display: block; width: 100%; }
+  table caption { padding: 0 0 .5rem; }
+  table tr {
+    margin: 0 0 .6rem; padding: .35rem 0;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  }
+  table tr:last-child { margin-bottom: 0; }
+  table td {
+    display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .75rem; align-items: baseline;
+    padding: .3rem .85rem; overflow-wrap: anywhere;
+  }
+  #device-panel td:not(:first-child):not([data-label="Last checked"]) { white-space: normal; }
+  table td::before { font-size: .66rem; }
+  table td > * { justify-self: start; }
+  th:first-child, td:first-child, th:last-child, td:last-child { padding-left: .85rem; padding-right: .85rem; }
+  #device-panel td:first-child,
+  #device-panel td[data-label="Last checked"] { min-width: 0; }
+  /* Device name: full width, it is the card title. */
+  #device-panel td[data-label="Device name"] { display: block; padding-top: .45rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); margin-bottom: .25rem; }
+  #device-panel td[data-label="Device name"]::before { content: none; }
+  #device-panel td[data-label="Device name"] > a { font-size: .95rem; }
+  #device-panel td[data-label="Actions"] { display: block; padding-top: .45rem; }
+  #device-panel td[data-label="Actions"]::before { content: none; }
+  td .row-actions { width: auto; margin-left: 0; justify-content: flex-start; gap: .5rem; }
+  td .row-actions a:not(.button) { padding: .45rem .7rem; border: 1px solid var(--button-border); }
+  tbody tr:hover td:first-child { box-shadow: none; }
+  .device-group summary { padding: .6rem .75rem; }
+  .device-group .table-wrap { padding: .6rem; }
+
+  .dashboard-split { gap: .85rem; }
+
+  /* Device page */
+  .details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .details div { padding: .7rem .8rem; }
+  .details div:nth-child(3) { grid-column: 1 / -1; }
+  .details dd { font-size: .88rem; overflow-wrap: anywhere; }
+  .panel > .history-bar { gap: 1px; }
+  .panel > .history-bar .history-block { height: 26px; border-radius: 1px; }
+  .history-scale { font-size: .75rem; gap: .5rem; }
+
+  /* Topology: keep the drawn size and scroll sideways inside the panel. */
+  .topology-svg { max-width: none; margin: 1rem; }
+  .topology-wrap { overscroll-behavior-x: contain; }
+  .scroll-hint { display: block; margin: .5rem 0 0; color: var(--muted); font-size: .75rem; }
+  .scroll-hint::before { content: "\2194\00a0"; color: var(--accent); }
+  .legend { gap: .5rem 1rem; }
+
+  /* About diagrams: same idea, a readable fixed width that scrolls sideways. */
+  .arch-figure { padding: .75rem; overflow-x: auto; overscroll-behavior-x: contain; }
+  .arch-svg { width: 52rem; max-width: none; }
+  .origin-grid > .scroll-hint { margin-top: -1.25rem; }
+  .about-cta { flex-direction: column; align-items: flex-start; gap: 1.25rem; padding: 1.5rem 1.25rem; margin-bottom: 3rem; }
+  .about-cta h2 { font-size: 1.3rem; }
+  .helped-copy { padding: 1.25rem; }
+  .skill-group { padding: 1.1rem; }
+
+  /* Landing page */
+  .hero { min-height: 0; padding: 2rem 0 3rem; }
+  .hero-grid { gap: 2rem; }
+  .hero-title { font-size: clamp(2rem, 10.5vw, 2.6rem); }
+  .hero-lede { font-size: 1rem; }
+  .hero-terminal { padding: .75rem .85rem; font-size: .82rem; overflow-wrap: anywhere; }
+  .scroll-cue { display: none; }
+  .stats-strip { padding: 3rem 0 2rem; }
+  .stat-row { gap: .6rem; }
+  .stat-row > li { padding: 1rem; }
+  .stat-num { font-size: 1.9rem; }
+  .stat-row:not(.stat-row-4) > li:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .device-chip { grid-template-columns: auto minmax(0, 1fr); gap: .3rem .75rem; padding: .75rem .9rem; }
+  .device-chip .status { grid-column: 2; justify-self: start; white-space: normal; }
+  .how, .showcase { padding: 3.5rem 0 2rem; }
+  .how-grid, .stack-grid, .timeline { grid-template-columns: 1fr; }
+  .feature { gap: 1.25rem; margin-bottom: 3.5rem; }
+  .feature-copy h3 { font-size: 1.45rem; }
+  .section-title-lg { margin-bottom: 1.5rem; }
+  .cta-band { padding: 3.5rem 0; }
+  .hero-actions .button { padding: .75rem 1.1rem; }
+
+  /* Reports */
+  .page-hero { padding: 2.5rem 0 2rem; margin-bottom: 2rem; }
+  .report-card { padding: 1.1rem; }
+  .report-head { flex-wrap: wrap; gap: .5rem; }
+  .report-head h3 { font-size: 1.25rem; }
+  .report-metrics div { padding: .7rem .75rem; }
+  .report-bar .history-bar { gap: 2px; }
+
+  /* Footer */
+  .footer-inner,
+  .page-app .footer-inner { padding: 2rem 1rem 1.5rem; gap: 1.75rem; }
+  .footer-base,
+  .page-app .footer-base { padding: 1rem 1rem 1.5rem; }
+  .footer-links { gap: 2.5rem; }
+
+  /* Add, edit and delete forms */
+  form:not(.inline-form):not(.filter-form) { padding: 1rem; margin-top: 1rem; }
+  .actions { flex-wrap: wrap; }
+
+  /* Demo tour: a bottom sheet across the screen, not a card off the edge. */
+  .tour { left: .5rem; right: .5rem; bottom: .5rem; width: auto; max-height: 70vh; padding: .9rem 1rem; }
+  .tour-actions { flex-wrap: wrap; }
+  .tour-actions button { flex: 1 1 auto; padding: .6rem .8rem; }
+}
