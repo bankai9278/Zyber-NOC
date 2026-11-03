@@ -59,7 +59,7 @@ Tests do not need the server, and they must not send real pings:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-The last full run, after adding the read-only demo mode (Nov 2, 2026), was 196 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
+The last full run, after adding the README screenshots, the demo tour, and outage alerts (Nov 3, 2026), was 231 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
 
 ## What is already built
 
@@ -92,6 +92,7 @@ The last full run, after adding the read-only demo mode (Nov 2, 2026), was 196 p
 27. Read-only demo mode for a public copy. `Config.DEMO_MODE` is off by default and turns on only when the environment variable `ZYBER_DEMO_MODE` is `1`, `true`, `yes`, or `on` (any case, spaces trimmed). `TestConfig` forces it off so tests turn it on themselves. When it is on, `create_app` calls `seed_demo_database` in `app/demo.py`, which rebuilds `DEMO_DATABASE_PATH` (`instance/demo.db`) through a temporary file and `os.replace`, and the app reads only that file; `instance/monitor.db` is not opened. The sample has 8 devices named `Sample ...` with the description `Sample data for the demo. Not a real device.`, on documentation ranges `192.0.2.0/24`, `198.51.100.0/24`, and `203.0.113.0/24`, and 90 days of ping rows (6 a day) from a fixed `random.Random(2026)` seed, with status-change rows for each change. Latest states: floor 2 switch offline, its access point offline (so it shows Unreachable via), the printer error, the lab workstation never checked (Unknown), the rest online. Dates follow the start time. A `before_request` hook, registered before the CSRF check, returns a 403 `Read-only demo` page for any method other than GET, HEAD, or OPTIONS, and for the endpoints in `DEMO_BLOCKED_ENDPOINTS` in `app/__init__.py` (add form, create, edit, delete confirm and delete, check, check port, check all). `scheduled_interval_seconds` returns None and `run_scheduled_checks` returns `"demo"` without checking. Templates get `demo_mode`: `base.html` shows a banner on every page (`Every device, status, and number here is sample data, not a live reading.`), hides the Add device link, and changes the footer note. The dashboard, device page, and home page hide Check now, Check all, Check port, Edit, Delete, and Add device; the dashboard row shows View instead. `GET /api/dashboard` adds `sample_data: true` only in demo mode. History CSV still downloads. Banner style is `.demo-banner` at the end of `premium.css`. Tests are in `tests/test_demo.py`; they replace `subprocess.run`, `subprocess.Popen`, and `socket.create_connection` with functions that fail the test. README has hosting notes: PythonAnywhere through its WSGI file with no new dependency, and Render, which would need `gunicorn` added to `requirements.txt` (not added). `.claude/launch.json` has a `zyber-noc-demo-5051` preview entry that starts the demo on port 5051.
 28. README top section (Nov 3, 2026). The README opens with the Tests badge, the live demo link `https://zybernoc.pythonanywhere.com` (read-only, sample data), a short pitch, and a 2x2 table of four real screenshots in `docs/screenshots/` (`dashboard.png`, `device.png`, `topology.png`, `home.png`). They were captured at 1440x1000 with headless Edge from the app running locally in demo mode (`zyber-noc-demo-5051`), so every value in them is sample data. Recapture them the same way after a visible change; never edit or mock them. `tests/test_readme.py` checks the link, that each referenced file exists and is a PNG, and that the sample-data note is there.
 29. "How it works" tour, demo mode only (Nov 3, 2026). `base.html` includes `app/templates/_tour.html` and loads `app/static/js/tour.js` only when `demo_mode` is on. The tour is a floating card (`role="dialog"`, not modal) in the bottom-right with three steps: sample data, how one check is saved, and where to look. It is `hidden` in the HTML, so it never appears without its script. `tour.js` opens it once per browser (localStorage key `zyber-tour-seen`, wrapped in try/catch, so a blocked store just shows it again), and a `How it works` button in the demo banner reopens it. Close, Got it, and Escape close it and remember that. Auto-open leaves focus alone; opening from the button moves focus to the title and returns it on close. The script toggles `hidden` and classes only (no `innerHTML`, no inline style). The slide-in animation (`.tour-animate` in `premium.css`) is skipped when `prefers-reduced-motion: reduce` matches; the tour itself still shows, because it is information, not motion. The step text avoids the words `Check now`, which `tests/test_demo.py` requires to be absent in demo mode. Tests: `tests/test_tour.py`.
+30. Outage alerts (Nov 3, 2026). `app/alerts.py`. Off by default: `Config.ALERTS_ENABLED` reads `ZYBER_ALERTS` with the same on/off rule as demo mode, and `alerts_enabled` is always False when `DEMO_MODE` is on. An alert is a saved result whose status differs from the previous result and is `offline` or `error` (same rule as an incident). The first saved result and a recovery to online never alert. `save_monitoring_result` now also returns `previous_status` (None for a first result). `_store_check` in `app/routes/devices.py` calls `_alert_on_outage` after a successful save; any exception there is swallowed so a check never fails because of an alert. Each alert appends one line to `ALERT_LOG_PATH` (`instance/alerts.log`, git-ignored with `instance/`), such as `<UTC time> ALERT Zyber NOC: Core switch (10.0.0.2) is offline`. Email is optional, through stdlib `smtplib` (no new dependency), only when `ZYBER_SMTP_HOST`, `ZYBER_ALERT_FROM`, and `ZYBER_ALERT_TO` are set; port `ZYBER_SMTP_PORT` (default 587), STARTTLS on unless `ZYBER_SMTP_STARTTLS` is 0/false/no/off, optional login from `ZYBER_SMTP_USERNAME` and `ZYBER_SMTP_PASSWORD`, 10 second timeout. Email is sent on a daemon thread. A failure logs `EMAIL FAILED <error type>` and never the password or server reply. Why this default: the log file works with no account or network, and email is the common next step that still needs nothing outside the standard library. `TestConfig` forces alerts off and blanks every SMTP setting. Tests: `tests/test_alerts.py` replaces `smtplib.SMTP` with a recorder or a function that fails the test, and runs the background send inline. The About page still lists "Add alerting when a status changes." under What's next; that is Yash's own text and was left for him to update.
 
 ## Routes
 
@@ -186,6 +187,7 @@ From `app/config.py`:
 | `app/database.py` | Schema, validation, queries |
 | `app/monitoring.py` | Ping command, TCP connect, parsers, batch runner |
 | `app/demo.py` | Builds the sample SQLite file for demo mode. No network access |
+| `app/alerts.py` | Outage alerts: local log line and optional SMTP email. Off by default, never in demo mode |
 | `app/presentation.py` | Status labels, Toronto timestamps, statistics labels, topology layout, latency chart, status bars |
 | `app/zoneinfo/America/Toronto` | TZif data used when the system has no IANA zone |
 | `app/csrf.py` | Token creation and comparison |
@@ -203,6 +205,9 @@ From `app/config.py`:
 | `app/static/js/tour.js` | Demo-only three-step tour. Loaded only when demo mode is on |
 | `app/static/img/` | `logo-yo.svg` (initials logo, also the favicon), the older unused `favicon.svg`, and three static page images used on the home page |
 | `tests/conftest.py` | Temporary database and test client |
+| `tests/test_alerts.py` | Outage rule, off by default, demo never alerts, log line, email through a stand-in SMTP, failure logging, and the Check now path |
+| `tests/test_tour.py` | Demo-only tour markup, script, CSP safety, and reduced motion |
+| `tests/test_readme.py` | README demo link and screenshot files |
 | `tests/test_demo.py` | Demo flag, sample data labels, blocked write routes, scheduler off, and no ping or socket calls |
 | `tests/test_site.py` | Landing, reports, about content, logo file and header/footer/favicon links, and the no-inline-script check |
 | `tests/test_*.py` | Health, database, devices, dashboard, monitoring, presentation, site |
@@ -231,7 +236,8 @@ Commit or push again only when the user asks.
 
 Do not treat these as existing features:
 
-- SNMP, authentication, and alerting that sends a message when a status changes. The dashboard lists saved incidents; it does not send alerts
+- SNMP and authentication
+- Alert channels other than the local log file and SMTP email, and recovery alerts
 - A latency chart beyond the latest 20 saved checks. The 90-day bar shows status, not response time
 - TCP ports other than 22, 53, 80, 443, and 3389
 - A production server, login, or deployment setup for normal mode. Only the read-only demo has hosting notes, and nothing has been deployed

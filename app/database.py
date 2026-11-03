@@ -367,7 +367,11 @@ def save_monitoring_result(
     jitter_ms=None,
     packet_loss_pct=None,
 ):
-    """Store one monitoring result for an existing device."""
+    """Store one monitoring result for an existing device.
+
+    The returned row also carries previous_status, so callers can tell
+    whether this check changed the device's status.
+    """
     result = _validate_result(
         device_id,
         status,
@@ -449,7 +453,10 @@ def save_monitoring_result(
             """,
             (cursor.lastrowid,),
         ).fetchone()
-        return dict(row)
+        saved = dict(row)
+        # The status before this check, or None for a device's first result.
+        saved["previous_status"] = previous["status"] if previous is not None else None
+        return saved
 
 
 def list_status_changes(database_path, limit=10):

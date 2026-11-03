@@ -16,6 +16,10 @@ def _env_flag(name):
     return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _env_text(name):
+    return os.environ.get(name, "").strip()
+
+
 class Config:
     """Settings for running the app on this Windows PC."""
 
@@ -47,6 +51,21 @@ class Config:
     DEMO_MODE = _env_flag("ZYBER_DEMO_MODE")
     # Rebuilt from app/demo.py each time the app starts in demo mode.
     DEMO_DATABASE_PATH = PROJECT_ROOT / "instance" / "demo.db"
+    # Outage alerts. Off unless ZYBER_ALERTS is 1, true, yes, or on. Demo mode never alerts.
+    # Each change to offline or error is written to this local log file.
+    ALERTS_ENABLED = _env_flag("ZYBER_ALERTS")
+    ALERT_LOG_PATH = PROJECT_ROOT / "instance" / "alerts.log"
+    # Optional email through your own mail server. Set these as environment
+    # variables, never in this file, so the password is not committed.
+    ALERT_SMTP_HOST = _env_text("ZYBER_SMTP_HOST")
+    ALERT_SMTP_PORT = _env_text("ZYBER_SMTP_PORT") or "587"
+    ALERT_SMTP_USERNAME = _env_text("ZYBER_SMTP_USERNAME")
+    ALERT_SMTP_PASSWORD = os.environ.get("ZYBER_SMTP_PASSWORD", "")
+    ALERT_SMTP_STARTTLS = _env_text("ZYBER_SMTP_STARTTLS").lower() not in ("0", "false", "no", "off")
+    ALERT_SMTP_TIMEOUT_SECONDS = 10
+    ALERT_EMAIL_FROM = _env_text("ZYBER_ALERT_FROM")
+    # One address, or several separated by commas.
+    ALERT_EMAIL_TO = _env_text("ZYBER_ALERT_TO")
 
 
 class TestConfig(Config):
@@ -62,3 +81,11 @@ class TestConfig(Config):
     DATABASE_PATH = ":memory:"
     # Tests turn demo mode on themselves, so an environment variable cannot change them.
     DEMO_MODE = False
+    # The same for alerts: tests switch them on and never reach a real mail server.
+    ALERTS_ENABLED = False
+    ALERT_LOG_PATH = None
+    ALERT_SMTP_HOST = ""
+    ALERT_SMTP_USERNAME = ""
+    ALERT_SMTP_PASSWORD = ""
+    ALERT_EMAIL_FROM = ""
+    ALERT_EMAIL_TO = ""

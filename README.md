@@ -48,6 +48,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Show a 90-day status bar on the device page and a 30-day bar on each dashboard row. Colour comes from the worst saved status that day. Days with no checks stay grey. The 90-day uptime uses only checks in that window.
 - Download one device's history as CSV. The file keeps the stored UTC timestamps.
 - Show timestamps in America/Toronto local time. The database still stores UTC.
+- Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
 - Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
 - Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
 - Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` stays off when the system asks for reduced motion.
@@ -196,6 +197,38 @@ GitHub Actions runs the same tests on `windows-latest`. The workflow file is `.g
 
 Use a device you control. Do not add an address at work, school, or another network unless you are allowed to monitor it.
 
+## Outage alerts (optional)
+
+Alerts are off by default. An alert is raised when a saved check changes a device's status to **offline** or **error**, the same rule the incidents panel uses. A device's first check is not a change, so it never alerts, and a return to online does not alert either.
+
+When alerts are on, each one is added as a line to `instance/alerts.log` on this PC. That file is the default because it needs no account, no password, and no network. Email is an extra you can add: the app sends it with Python's built-in `smtplib`, so there is no new dependency. The email goes out on a background thread, so a slow mail server does not hold up Check all. A failed email is written to the log by error type only; the password is never written.
+
+Settings come from environment variables, so nothing secret is saved in the code:
+
+| Variable | Meaning |
+|---|---|
+| `ZYBER_ALERTS` | `1` turns alerts on. Anything else leaves them off |
+| `ZYBER_SMTP_HOST` | Mail server, such as `smtp.gmail.com`. Email is skipped when this is empty |
+| `ZYBER_SMTP_PORT` | Default `587` |
+| `ZYBER_SMTP_USERNAME`, `ZYBER_SMTP_PASSWORD` | Mail login. For Gmail or Outlook use an app password, not your normal password |
+| `ZYBER_SMTP_STARTTLS` | Default on. Set `0` only for a server that does not use STARTTLS |
+| `ZYBER_ALERT_FROM` | Sender address |
+| `ZYBER_ALERT_TO` | One recipient, or several separated by commas |
+
+Example for one PowerShell window:
+
+```powershell
+$env:ZYBER_ALERTS = "1"
+$env:ZYBER_SMTP_HOST = "smtp.gmail.com"
+$env:ZYBER_SMTP_USERNAME = "you@gmail.com"
+$env:ZYBER_SMTP_PASSWORD = "your-app-password"
+$env:ZYBER_ALERT_FROM = "you@gmail.com"
+$env:ZYBER_ALERT_TO = "you@gmail.com"
+.\.venv\Scripts\python.exe run.py
+```
+
+Leave out the `ZYBER_SMTP_*` lines to get the log file only. Alerts only happen when a check runs, so they pair well with scheduled checks.
+
 ## Read-only demo for hosting
 
 The app can run as a public, read-only demo. Demo mode is off by default. Turn it on with the environment variable `ZYBER_DEMO_MODE=1` (`true`, `yes`, or `on` also work; anything else leaves it off).
@@ -251,6 +284,7 @@ The images at the top of this file are in `docs/screenshots/`. They were capture
 
 - This is a local prototype. It is bound to `127.0.0.1` and is not a production monitoring system.
 - The hosted demo shows sample data only. It cannot check real devices or save changes.
+- Outage alerts are off by default, cover only changes to offline or error, and are only as fast as the checks. Without scheduled checks, nothing alerts until someone runs a check.
 - There is no login. Anyone who can use this Windows session can open the dashboard.
 - Connectivity checks use ICMP through Windows `ping` only. They use 5 attempts and a 1000 millisecond wait for each reply.
 - A host or firewall that blocks ICMP can appear Offline even though it answers other traffic.
@@ -272,6 +306,6 @@ These items are not built:
 
 - SNMP monitoring for interface status, uptime, or errors on managed network equipment.
 - Authentication so each technician has their own login.
-- Alerting that sends a message when a device changes from Online to Offline. The dashboard lists saved incidents, and it does not send email or other alerts.
+- Alert channels beyond the log file and email, such as a Windows notification or a chat webhook, and a recovery alert when a device comes back online.
 - A response-time chart longer than the latest 20 saved checks. The status bar already covers 90 days, but it does not plot latency.
 - TCP checks for ports other than 22, 53, 80, 443, and 3389.

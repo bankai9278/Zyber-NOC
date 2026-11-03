@@ -8,6 +8,7 @@ from io import StringIO
 
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 
+from app.alerts import notify_outage
 from app.database import (
     DatabaseError,
     ValidationError,
@@ -466,7 +467,7 @@ def _one_check(device_id):
 
 def _store_check(result, report_errors=True):
     try:
-        save_monitoring_result(
+        saved = save_monitoring_result(
             _database_path(),
             device_id=result["device_id"],
             status=result["status"],
@@ -484,7 +485,25 @@ def _store_check(result, report_errors=True):
         if report_errors:
             flash("The connectivity result could not be saved.")
         return False
+    _alert_on_outage(saved)
     return True
+
+
+def _alert_on_outage(saved):
+    """Raise an outage alert after the result is saved. It must never break a check."""
+    try:
+        device = get_device(_database_path(), saved["device_id"])
+        if device is None:
+            return
+        notify_outage(
+            current_app.config,
+            device,
+            saved["previous_status"],
+            saved["status"],
+            saved["recorded_at"],
+        )
+    except Exception:
+        return
 
 
 def _device_is_cooling_down(device_id):
