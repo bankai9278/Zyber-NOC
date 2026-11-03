@@ -1,8 +1,24 @@
 # Zyber NOC
 
-Zyber NOC is a local Windows prototype by Yash Oza for a junior network technician or IT support portfolio. It keeps an inventory of devices you choose to monitor, checks those devices with Windows ping, stores each result, and shows the latest status on a dashboard.
+[![Tests](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml/badge.svg)](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml)
 
-This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network.
+**Live demo: [zybernoc.pythonanywhere.com](https://zybernoc.pythonanywhere.com)** (read-only, sample data)
+
+A small network operations console that pings the devices you save, keeps every result in SQLite, and turns them into uptime, incidents, a 90-day status bar, and a topology map. Built with Python, Flask, and plain HTML, CSS, and JavaScript by Yash Oza as a junior network technician and IT support portfolio project.
+
+| Dashboard | Device page |
+|---|---|
+| ![Dashboard with device counts, status changes, and recent incidents](docs/screenshots/dashboard.png) | ![Device page with jitter, packet loss, 90-day status, and response-time chart](docs/screenshots/device.png) |
+| **Topology** | **Home** |
+| ![Topology map drawn from saved parent links](docs/screenshots/topology.png) | ![Landing page](docs/screenshots/home.png) |
+
+The screenshots were taken from the app running in read-only demo mode, so every device and number in them is sample data on documentation addresses.
+
+## About this project
+
+Zyber NOC is a local Windows prototype for a junior network technician or IT support portfolio. It keeps an inventory of devices you choose to monitor, checks those devices with Windows ping, stores each result, and shows the latest status on a dashboard.
+
+This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in read-only demo mode: it never pings anything and cannot be changed.
 
 ## Features
 
@@ -164,9 +180,7 @@ The tests do not need the web server to be running. From the project folder:
 
 Ping tests replace the Windows command with saved examples of online, offline, timeout, and failed output. TCP tests replace the socket connection. They do not contact the network.
 
-GitHub Actions runs the same tests on `windows-latest`. The workflow file is `.github/workflows/tests.yml`. The repository is [bankai9278/Zyber-NOC](https://github.com/bankai9278/Zyber-NOC). The badge shows the latest workflow run:
-
-[![Tests](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml/badge.svg)](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml)
+GitHub Actions runs the same tests on `windows-latest`. The workflow file is `.github/workflows/tests.yml`. The repository is [bankai9278/Zyber-NOC](https://github.com/bankai9278/Zyber-NOC). The badge at the top of this file shows the latest workflow run.
 
 ## Add a device and check it
 
@@ -230,7 +244,7 @@ Never host the app without demo mode. Normal mode has no login and would let any
 
 ## Screenshots
 
-The home page shows three static images of the dashboard, a device page, and the topology map. They are saved files in `app/static/img/` and are not a live reading of the database. The GitHub link in the footer opens the project repository.
+The images at the top of this file are in `docs/screenshots/`. They were captured from the app in demo mode. The home page shows three static images of the dashboard, a device page, and the topology map. They are saved files in `app/static/img/` and are not a live reading of the database. The GitHub link in the footer opens the project repository.
 
 ## Current limitations
 
