@@ -391,14 +391,16 @@ html.fx-js .donut-ok { stroke-dashoffset: var(--donut-from, 0); transition: stro
   .arch-figure { padding: .75rem; }
 }
 
-/* ---------- Reduced motion: everything static and visible ---------- */
+/* ---------- Reduced motion: everything static and visible ----------
+   html.motion-on is set by premium.js when the visitor turns motion on in the
+   footer, so each rule here is skipped for them. */
 @media (prefers-reduced-motion: reduce) {
-  .fx-spotlight { display: none; }
-  html.fx-js [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
-  .hero-mesh, .cta-mesh, .net-pulses path, .arch-pulses path, .node-led, .node-halo, .caret, .scroll-cue span, .chip-offline { animation: none !important; }
-  .net-pulses, .arch-pulses { display: none; }
-  .feature-figure, [data-magnetic] { transform: none !important; }
-  *, *::before, *::after { transition-duration: 0s !important; scroll-behavior: auto !important; }
+  html:not(.motion-on) .fx-spotlight { display: none; }
+  html.fx-js:not(.motion-on) [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+  html:not(.motion-on) :is(.hero-mesh, .cta-mesh, .net-pulses path, .arch-pulses path, .node-led, .node-halo, .caret, .scroll-cue span, .chip-offline) { animation: none !important; }
+  html:not(.motion-on) :is(.net-pulses, .arch-pulses) { display: none; }
+  html:not(.motion-on) :is(.feature-figure, [data-magnetic]) { transform: none !important; }
+  html:not(.motion-on) *, html:not(.motion-on) *::before, html:not(.motion-on) *::after { transition-duration: 0s !important; scroll-behavior: auto !important; }
 }
 .panel:has(> .summary)::before { display: none; }
 .page-app .footer-inner, .page-app .footer-base { max-width: 88rem; padding-left: 1.5rem; padding-right: 1.5rem; }
@@ -448,7 +450,7 @@ html.is-scrolled .page-home .header-inner {
 .tour-step p { margin: 0; font-size: .875rem; line-height: 1.55; }
 .tour-actions { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .9rem; }
 @media (prefers-reduced-motion: reduce) {
-  .tour-animate { animation: none; }
+  html:not(.motion-on) .tour-animate { animation: none; }
 }
 
 /* ==========================================================================

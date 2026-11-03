@@ -146,11 +146,12 @@ html.fx-field .hero-field { display: block; }
 }
 
 /* ---------- Reduced motion: no transitions, no loops, no intro ---------- */
+/* Page transitions under reduced motion are skipped by premium.js
+   (pagereveal), because an at-rule cannot check the motion-on class. */
 @media (prefers-reduced-motion: reduce) {
-  @view-transition { navigation: none; }
-  .topology-flow { animation: none !important; display: none; }
-  .topology-svg rect.topo-halo { animation: none !important; opacity: .6; transform: none; }
-  .boot { display: none !important; }
-  html.is-booting .hero [data-reveal].is-visible { opacity: 1; transform: none; filter: none; }
-  .hero-field, .fx-cursor, .story-packet { display: none !important; }
+  html:not(.motion-on) .topology-flow { animation: none !important; display: none; }
+  html:not(.motion-on) .topology-svg rect.topo-halo { animation: none !important; opacity: .6; transform: none; }
+  html:not(.motion-on) .boot { display: none !important; }
+  html.is-booting:not(.motion-on) .hero [data-reveal].is-visible { opacity: 1; transform: none; filter: none; }
+  html:not(.motion-on) :is(.hero-field, .fx-cursor, .story-packet) { display: none !important; }
 }

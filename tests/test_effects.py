@@ -66,10 +66,12 @@ def test_effects_respect_reduced_motion():
     for part in ("Hero network field", "Scroll story", "Dashboard count-up", "Reveal app-page panels"):
         assert part in tail
     block = _css()[_css().index("Reduced motion: no transitions"):]
-    assert "@view-transition { navigation: none; }" in block
-    assert ".topology-flow { animation: none !important; display: none; }" in block
-    assert ".boot { display: none !important; }" in block
-    assert ".hero-field, .fx-cursor, .story-packet { display: none !important; }" in block
+    assert "html:not(.motion-on) .topology-flow { animation: none !important; display: none; }" in block
+    assert "html:not(.motion-on) .boot { display: none !important; }" in block
+    assert "html:not(.motion-on) :is(.hero-field, .fx-cursor, .story-packet) { display: none !important; }" in block
+    # Page transitions are skipped from script, because an at-rule cannot see a class.
+    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
+    assert 'window.addEventListener("pageswap", skipTransition);' in premium
 
 
 def test_page_transitions_use_css_only():
@@ -152,3 +154,27 @@ def test_demo_topology_animates_only_online_links_and_pulses_offline(demo_client
     assert html.count('class="topo-halo"') == html.count('class="topo-node topo-offline"')
     assert html.count('class="topo-node topo-offline"') >= 1
     assert re.search(r'class="topo-node topo-\w+" data-node="\d+" data-parent="\d*"', html)
+
+
+def test_motion_switch_is_hidden_until_the_system_asks_for_reduced_motion(demo_client):
+    html = demo_client.get("/").get_data(as_text=True)
+    assert 'data-motion-toggle aria-pressed="false" hidden>Animations: off (system setting)</button>' in html
+    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
+    assert 'if (motionToggle && systemReduce) {' in premium
+    assert 'localStorage.getItem("zyber-motion") === "on"' in premium
+    assert 'if (systemReduce && motionOn) root.classList.add("motion-on");' in premium
+
+
+def test_every_reduced_motion_rule_yields_to_the_motion_switch():
+    # Each rule inside a reduced-motion block must be scoped to html:not(.motion-on),
+    # so the footer switch can turn motion back on.
+    for name in ("style.css", "theme-terminal.css", "premium.css", "effects.css"):
+        css = (STATIC / "css" / name).read_text(encoding="utf-8")
+        for match in re.finditer(r"@media \(prefers-reduced-motion: reduce\) \{", css):
+            depth, i = 1, match.end()
+            while depth:
+                depth += {"{": 1, "}": -1}.get(css[i], 0)
+                i += 1
+            body = css[match.end():i - 1]
+            for rule in re.findall(r"([^{}]+)\{[^{}]*\}", body):
+                assert "html" in rule and ":not(.motion-on)" in rule, (name, rule.strip())

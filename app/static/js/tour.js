@@ -36,7 +36,7 @@
 
   function open(focus) {
     show(0);
-    tour.classList.toggle("tour-animate", !reduce.matches);
+    tour.classList.toggle("tour-animate", !reduce.matches || document.documentElement.classList.contains("motion-on"));
     tour.hidden = false;
     // Opened by the visitor: move focus in. Opened on page load: leave focus where it is.
     if (focus) title.focus();

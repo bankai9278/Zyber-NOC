@@ -3,8 +3,35 @@
 (function () {
   "use strict";
   var root = document.documentElement;
-  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var systemReduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  /* A visitor whose system asks for reduced motion can turn motion back on
+     with the footer switch. The choice is kept in this browser only. */
+  var motionOn = false;
+  try { motionOn = localStorage.getItem("zyber-motion") === "on"; } catch (err) { motionOn = false; }
+  if (systemReduce && motionOn) root.classList.add("motion-on");
+  var reduce = { matches: systemReduce && !motionOn };
   root.classList.add("fx-js");
+
+  /* ---- Footer switch: shown only when the system asks for reduced motion ---- */
+  var motionToggle = document.querySelector("[data-motion-toggle]");
+  if (motionToggle && systemReduce) {
+    motionToggle.setAttribute("aria-pressed", motionOn ? "true" : "false");
+    motionToggle.textContent = motionOn ? "Animations: on" : "Animations: off (system setting)";
+    motionToggle.hidden = false;
+    motionToggle.addEventListener("click", function () {
+      try {
+        localStorage.setItem("zyber-motion", motionOn ? "off" : "on");
+        window.location.reload();
+      } catch (err) {
+        motionToggle.textContent = "Animations: this browser blocks saving the choice";
+      }
+    });
+  }
+
+  /* ---- Page transitions: skip them when motion is reduced ---- */
+  function skipTransition(e) { if (reduce.matches && e.viewTransition) e.viewTransition.skipTransition(); }
+  window.addEventListener("pageswap", skipTransition);
+  window.addEventListener("pagereveal", skipTransition);
 
   /* ---- Scroll: progress bar + shrinking header ---- */
   var ticking = false;
