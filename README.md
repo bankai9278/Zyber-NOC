@@ -224,6 +224,53 @@ $env:ZYBER_SNMP_PORT = "1161"
 
 Add a device with IP `127.0.0.1`, open it, and press **Poll SNMP** twice, at least 15 seconds apart. Remove `ZYBER_SNMP_PORT` (or open a new window) before polling real equipment, which listens on 161.
 
+## Monitor devices over Tailscale (optional)
+
+[Tailscale](https://tailscale.com) puts your own devices on one private network, even when they are in different places. Each device gets an address from `100.64.0.0/10` (such as `100.101.102.103`) and an IPv6 address in `fd7a:115c:a1e0::/48`. Zyber NOC accepts both kinds like any other single address, so a laptop at home, a Raspberry Pi at a friend's place, or a cloud server can be pinged, port-checked, and polled over SNMP from this PC.
+
+### Set it up on this PC
+
+1. Install Tailscale from PowerShell (Windows asks for administrator approval):
+
+   ```powershell
+   winget install --id Tailscale.Tailscale -e
+   ```
+
+   Or download the Windows installer from <https://tailscale.com/download/windows>.
+2. Open Tailscale from the Start menu and sign in. Every device you sign in with the same account joins your tailnet.
+3. Install Tailscale on each device you want to monitor and sign in there too.
+4. Find their addresses: `tailscale status` lists every device and its `100.x` address, or open the admin console at <https://login.tailscale.com/admin/machines>.
+
+### Add a tailnet device to Zyber NOC
+
+Add it like any other device, using its `100.x` address (hostnames such as MagicDNS names are not accepted, on purpose). Then:
+
+- **Check now** works when the device allows ping. Windows blocks ping by default; allow "File and Printer Sharing (Echo Request - ICMPv4-In)" on a Windows device you want to ping.
+- **Check port** works for 22, 53, 80, 443, or 3389 when that service runs on the device.
+- **Poll SNMP** works when the device runs an SNMP agent that allows v2c from your tailnet address.
+- Tailscale access controls (ACLs) can block traffic between your devices. The default policy allows it.
+
+### Open the dashboard from your other devices with `tailscale serve`
+
+The app itself still listens only on `127.0.0.1`. `tailscale serve` is a proxy on this PC that makes it reachable from your own tailnet devices over HTTPS, and from nowhere else.
+
+```powershell
+tailscale serve --bg 5000
+tailscale serve status
+```
+
+It prints an address like `https://your-pc.your-tailnet.ts.net`. Open that from your phone or laptop while both are signed in to Tailscale. Turn it off with:
+
+```powershell
+tailscale serve --https=443 off
+```
+
+Read this before using it:
+
+- Normal mode has **no login**. Anyone on your tailnet can add, edit, and delete devices and start checks. Only serve it when your tailnet holds just your own devices, and remove people from the tailnet you no longer trust.
+- To show someone the project safely, serve the read-only demo instead: start the app with `$env:ZYBER_DEMO_MODE = "1"`, then serve that port.
+- **Never use `tailscale funnel`.** Funnel publishes the app to the whole internet, and this app's normal mode must never be public.
+
 ## Outage alerts (optional)
 
 Alerts are off by default. An alert is raised when a saved check changes a device's status to **offline** or **error**, the same rule the incidents panel uses. A device's first check is not a change, so it never alerts, and a return to online does not alert either.
