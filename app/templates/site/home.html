@@ -94,7 +94,7 @@
               <a class="device-chip glow-card" href="{{ url_for('devices.device_detail', device_id=device.id) }}">
                 <span class="chip-dot chip-{{ device.status_class }}" aria-hidden="true"></span>
                 <span class="chip-name">{{ device.name }}</span>
-                <span class="chip-ip mono">{{ device.ip_address }}</span>
+                {% if device.ip_address %}<span class="chip-ip mono">{{ device.ip_address }}</span>{% endif %}
                 <span class="status status-{{ device.status_class }}">{{ device.status_label }}</span>
                 <span class="chip-time">{{ device.checked_label }}</span>
               </a>
@@ -201,10 +201,14 @@
     <p>This copy is a read-only demo. Run the app on your own PC to add devices and run checks.</p>
     <div class="hero-actions">
       <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open the sample dashboard</a>
-    {% else %}
+    {% elif can_edit %}
     <p>Add a device, run a check, and watch the record build.</p>
     <div class="hero-actions">
       <a class="button primary" data-magnetic href="{{ url_for('devices.new_device') }}">Add a device</a>
+    {% else %}
+    <p>Live results from a home network, checked by a small agent and saved here.</p>
+    <div class="hero-actions">
+      <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open the dashboard</a>
     {% endif %}
       <a class="button ghost" data-magnetic href="{{ url_for('site.about') }}">Read the story</a>
     </div>

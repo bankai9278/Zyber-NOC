@@ -99,6 +99,19 @@ CREATE TABLE IF NOT EXISTS snmp_interfaces (
 
 CREATE INDEX IF NOT EXISTS idx_snmp_interfaces_poll
     ON snmp_interfaces (poll_id);
+
+CREATE TABLE IF NOT EXISTS check_requests (
+    id INTEGER PRIMARY KEY,
+    device_id INTEGER NOT NULL,
+    check_type TEXT NOT NULL CHECK (check_type IN ('ping', 'tcp')),
+    port INTEGER CHECK (port IS NULL OR port IN (22, 53, 80, 443, 3389)),
+    requested_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (device_id) REFERENCES devices (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_check_requests_pending
+    ON check_requests (completed_at, requested_at);
 """
 SNMP_POLL_STATUSES = ("ok", "no_reply", "error")
 MAX_SNMP_INTERFACES = 48
@@ -382,6 +395,10 @@ def delete_device(database_path, device_id):
             (device_id,),
         )
         connection.execute(
+            "DELETE FROM check_requests WHERE device_id = ?",
+            (device_id,),
+        )
+        connection.execute(
             "DELETE FROM monitoring_results WHERE device_id = ?",
             (device_id,),
         )
@@ -586,6 +603,89 @@ def latest_result_time(database_path):
             "SELECT MAX(recorded_at) AS recorded_at FROM monitoring_results"
         ).fetchone()
         return row["recorded_at"]
+
+
+MAX_PENDING_CHECK_REQUESTS = 200
+
+
+def queue_check_request(database_path, *, device_id, check_type="ping", port=None, max_age_minutes=60):
+    """Ask the home agent to run one check of a saved device on its next run.
+
+    Returns True when a request was added, or False when the same check is
+    already waiting. Requests older than max_age_minutes no longer count
+    and are deleted, along with finished ones.
+    """
+    device_id = _validate_id(device_id, "Device ID")
+    check_type, port = _validate_check(check_type, port)
+    cutoff = _minutes_ago(max_age_minutes)
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        if connection.execute("SELECT id FROM devices WHERE id = ?", (device_id,)).fetchone() is None:
+            raise ValidationError("Device does not exist.")
+        connection.execute(
+            "DELETE FROM check_requests WHERE completed_at IS NOT NULL OR requested_at < ?",
+            (cutoff,),
+        )
+        waiting = connection.execute(
+            """
+            SELECT id FROM check_requests
+            WHERE device_id = ? AND check_type = ? AND port IS ?
+            """,
+            (device_id, check_type, port),
+        ).fetchone()
+        if waiting is not None:
+            return False
+        pending = connection.execute("SELECT COUNT(*) FROM check_requests").fetchone()[0]
+        if pending >= MAX_PENDING_CHECK_REQUESTS:
+            raise ValidationError("Too many checks are already waiting for the home agent.")
+        connection.execute(
+            """
+            INSERT INTO check_requests (device_id, check_type, port, requested_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (device_id, check_type, port, _timestamp()),
+        )
+        return True
+
+
+def list_pending_check_requests(database_path, *, max_age_minutes=60, limit=MAX_PENDING_CHECK_REQUESTS):
+    """Return waiting check requests, oldest first."""
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        rows = connection.execute(
+            """
+            SELECT id, device_id, check_type, port, requested_at
+            FROM check_requests
+            WHERE completed_at IS NULL AND requested_at >= ?
+            ORDER BY requested_at ASC, id ASC
+            LIMIT ?
+            """,
+            (_minutes_ago(max_age_minutes), limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
+def complete_check_requests(database_path, request_ids):
+    """Mark the agent's finished requests as done. Unknown ids are ignored."""
+    ids = [_validate_id(value, "Request ID") for value in request_ids]
+    if not ids:
+        return 0
+    finished = _timestamp()
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        done = 0
+        for request_id in ids:
+            done += connection.execute(
+                "UPDATE check_requests SET completed_at = ? WHERE id = ? AND completed_at IS NULL",
+                (finished, request_id),
+            ).rowcount
+        return done
+
+
+def _minutes_ago(minutes):
+    if isinstance(minutes, bool) or not isinstance(minutes, int) or minutes < 1:
+        raise ValidationError("Request age must be a positive whole number of minutes.")
+    return (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat(timespec="seconds")
 
 
 def list_status_changes(database_path, limit=10):

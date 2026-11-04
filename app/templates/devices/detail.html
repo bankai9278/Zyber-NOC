@@ -10,7 +10,7 @@
       <h1>{{ device.name }}</h1>
       <p class="lede"><span class="status status-{{ device.status_class }}">{{ device.status_label }}</span></p>
     </div>
-    {% if not demo_mode %}
+    {% if can_edit %}
     <div class="row-actions">
       <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -26,20 +26,25 @@
         </select>
         <button type="submit" data-loading-label="Checking port">Check port</button>
       </form>
+      {% if not hosted_mode %}
       <form class="inline-form" method="post" action="{{ url_for('devices.poll_device_snmp', device_id=device.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button type="submit" data-loading-label="Polling">Poll SNMP</button>
       </form>
+      {% endif %}
       <a class="button" href="{{ url_for('devices.edit_device', device_id=device.id) }}">Edit</a>
       <a class="button button-danger" href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete device</a>
     </div>
     {% endif %}
   </div>
+  {% if queued %}
+  <p class="status-note queued-note">{{ queued | length }} check{% if queued | length != 1 %}s{% endif %} waiting for the home agent.</p>
+  {% endif %}
 
   <dl class="details">
     <div>
       <dt>IP address</dt>
-      <dd class="mono">{{ device.ip_address }}</dd>
+      <dd class="mono">{{ device.ip_address or "Hidden. Sign in to see it." }}</dd>
     </div>
     <div>
       <dt>Device type</dt>
@@ -47,7 +52,7 @@
     </div>
     <div>
       <dt>Description</dt>
-      <dd>{{ device.description or "No description" }}</dd>
+      <dd>{% if show_private %}{{ device.description or "No description" }}{% else %}Hidden. Sign in to see it.{% endif %}</dd>
     </div>
     <div>
       <dt>Location</dt>
@@ -111,7 +116,7 @@
   <section class="panel" aria-labelledby="snmp-heading">
     <h2 id="snmp-heading">Interfaces (SNMP)</h2>
     {% if not snmp %}
-      <p>No SNMP poll saved for this device.{% if not demo_mode %} Poll SNMP reads each interface's status and traffic counters. It only reads; it never changes the device.{% endif %}</p>
+      <p>No SNMP poll saved for this device.{% if can_edit and not hosted_mode %} Poll SNMP reads each interface's status and traffic counters. It only reads; it never changes the device.{% endif %}</p>
     {% else %}
       <p class="status-note">Last poll {{ snmp.polled_label }}: <span class="status status-{{ snmp.status_class }}">{{ snmp.status_label }}</span>{% if snmp.error_details %} {{ snmp.error_details }}{% endif %}</p>
       {% if snmp.interfaces %}
@@ -160,7 +165,7 @@
   <section class="panel" aria-labelledby="history-heading">
     <div class="section-heading">
       <h2 id="history-heading">Monitoring history</h2>
-      <a href="{{ url_for('devices.export_history', device_id=device.id) }}">Download CSV</a>
+      {% if can_edit or demo_mode %}<a href="{{ url_for('devices.export_history', device_id=device.id) }}">Download CSV</a>{% else %}<a href="{{ url_for('auth.login', next=url_for('devices.device_detail', device_id=device.id)) }}">Sign in to download CSV</a>{% endif %}
     </div>
     {% if history_hidden %}
       <p class="status-note">Showing the {{ history|length }} most recent checks. {{ history_hidden }} older checks remain stored.</p>

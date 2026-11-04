@@ -5,6 +5,7 @@ import secrets
 from flask import Flask, render_template, request
 from werkzeug.exceptions import HTTPException
 
+from app.auth import auth_enabled, bp as auth_bp, can_view_private, is_admin, require_admin
 from app.config import PROJECT_ROOT, Config
 from app.csrf import current_csrf_token, rejected_csrf
 from app.database import initialize_database
@@ -47,6 +48,9 @@ def create_app(config_class=Config):
     _use_local_secret(app)
     # Demo mode wins: a demo copy never shows live data.
     app.config["HOSTED_MODE"] = bool(app.config.get("HOSTED_MODE")) and not app.config.get("DEMO_MODE")
+    if app.config["HOSTED_MODE"] and not app.config.get("TESTING"):
+        # The hosted site is served over HTTPS, so the session cookie never travels in plain text.
+        app.config["SESSION_COOKIE_SECURE"] = True
     if app.config.get("DEMO_MODE"):
         # The demo never touches the real inventory. It reads a fresh sample file.
         app.config["DATABASE_PATH"] = seed_demo_database(app.config["DEMO_DATABASE_PATH"])
@@ -55,6 +59,7 @@ def create_app(config_class=Config):
     app.register_blueprint(devices_bp)
     app.register_blueprint(site_bp)
     app.register_blueprint(agent_bp)
+    app.register_blueprint(auth_bp)
 
     @app.after_request
     def add_security_headers(response):
@@ -79,10 +84,18 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_demo_mode():
+        admin = is_admin()
         return {
             "demo_mode": bool(app.config.get("DEMO_MODE")),
             "hosted_mode": bool(app.config.get("HOSTED_MODE")),
+            "auth_on": auth_enabled(app.config),
+            "signed_in": auth_enabled(app.config) and admin,
+            "can_edit": admin,
+            "show_private": can_view_private(),
         }
+
+    # Runs after the demo check and before the CSRF check.
+    app.before_request(require_admin)
 
     @app.before_request
     def protect_forms():

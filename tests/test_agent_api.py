@@ -12,6 +12,7 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from werkzeug.security import generate_password_hash
 
 from app import create_app
 from app.config import TestConfig
@@ -29,6 +30,7 @@ from app.routes.devices import run_scheduled_checks, scheduled_interval_seconds
 
 AGENT_KEY = "k" * 40
 HEADERS = {"X-Zyber-Agent-Key": AGENT_KEY}
+PASSWORD_HASH = generate_password_hash("correct horse", method="pbkdf2:sha256:1000")
 
 
 @pytest.fixture
@@ -51,6 +53,7 @@ def _make_app(tmp_path, **settings):
         SECRET_KEY = "test-secret-key"
         HOSTED_MODE = True
         AGENT_KEY = globals()["AGENT_KEY"]
+        ADMIN_PASSWORD_HASH = PASSWORD_HASH
 
     for name, value in settings.items():
         setattr(AgentConfig, name, value)
@@ -133,6 +136,7 @@ def test_wrong_or_missing_key_is_refused(agent, hosted_app, headers):
 def test_results_post_needs_no_csrf_token_but_forms_still_do(agent, hosted_app):
     device = _device(hosted_app)
     assert _post(agent, [_online(device["id"])]).status_code == 200
+    _sign_in(agent)
     # A browser form without a token is still rejected.
     response = agent.post(f"/devices/{device['id']}/delete", data={"confirm": "yes"})
     assert response.status_code == 400
@@ -338,15 +342,20 @@ def test_agent_post_prunes_old_results(agent, hosted_app):
 # Hosted mode never checks
 
 
-def _with_token(client):
+def _sign_in(client):
     with client.session_transaction() as session:
         session["csrf_token"] = "token"
-    return "token"
+    response = client.post(
+        "/login", data={"csrf_token": "token", "username": "admin", "password": "correct horse"}
+    )
+    assert response.status_code == 302
+    with client.session_transaction() as session:
+        return session["csrf_token"]
 
 
-def test_hosted_mode_refuses_every_local_check(agent, hosted_app):
+def test_hosted_mode_never_runs_a_local_check(agent, hosted_app):
     device = _device(hosted_app)
-    token = _with_token(agent)
+    token = _sign_in(agent)
     for path in (
         f"/devices/{device['id']}/check",
         f"/devices/{device['id']}/check-port",
@@ -355,7 +364,6 @@ def test_hosted_mode_refuses_every_local_check(agent, hosted_app):
     ):
         response = agent.post(path, data={"csrf_token": token, "port": "443"}, follow_redirects=True)
         assert response.status_code == 200
-        assert "does not check devices itself" in response.get_data(as_text=True)
     assert get_monitoring_history(hosted_app.config["DATABASE_PATH"], device["id"]) == []
 
 
@@ -397,7 +405,7 @@ def test_dashboard_shows_last_updated(client, app):
     assert client.get("/api/dashboard").get_json()["last_updated"].endswith(" ET")
 
 
-def test_hosted_dashboard_names_the_agent(agent, hosted_app):
+def test_hosted_dashboard_names_the_agent(agent):
     page = agent.get("/devices").get_data(as_text=True)
     assert "Last result from the home agent" in page
     assert "never pings anything itself" in page

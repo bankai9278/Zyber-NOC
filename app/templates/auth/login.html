@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in{% endblock %}
+
+{% block content %}
+  <p class="eyebrow">Zyber NOC</p>
+  <h1>Sign in</h1>
+  {% if configured %}
+  <p class="lede">Sign in to add, edit, and delete devices, queue checks, download history, and see addresses and descriptions.</p>
+  {% else %}
+  <p class="lede">Sign-in is not set up on this server yet. The owner sets ZYBER_ADMIN_PASSWORD_HASH to turn it on.</p>
+  {% endif %}
+  {% if error %}
+    <p class="error" id="login-error" role="alert">{{ error }}</p>
+  {% endif %}
+  <form class="login-form" method="post" action="{{ url_for('auth.login') }}" {% if error %}aria-describedby="login-error"{% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="next" value="{{ next_path }}">
+    <label for="username">Username</label>
+    <input id="username" name="username" required autocomplete="username" spellcheck="false" maxlength="100">
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required autocomplete="current-password" maxlength="200">
+    <div class="actions">
+      <button type="submit" class="primary" data-loading-label="Signing in">Sign in</button>
+    </div>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
+{% endblock %}

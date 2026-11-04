@@ -9,6 +9,7 @@ from io import StringIO
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 
 from app.alerts import notify_outage
+from app.auth import can_view_private, hide_private, is_admin
 from app.snmp import SnmpError, SnmpTimeout, poll_interfaces
 from app.database import (
     DatabaseError,
@@ -21,10 +22,12 @@ from app.database import (
     get_snmp_view,
     latest_result_time,
     list_devices,
+    list_pending_check_requests,
     list_incidents,
     list_monitoring_window,
     list_status_changes,
     parse_device_filter,
+    queue_check_request,
     save_monitoring_result,
     save_snmp_poll,
     summarize_monitoring_results,
@@ -57,7 +60,9 @@ from app.presentation import (
 
 bp = Blueprint("devices", __name__)
 _check_lock = threading.Lock()
-HOSTED_CHECK_MESSAGE = "This website does not check devices itself. The home agent checks them and sends the results."
+HOSTED_SNMP_MESSAGE = "SNMP polls are not available on the hosted site. The home agent only pings and checks TCP ports."
+QUEUED_MESSAGE = "Check queued. The home agent runs it on its next run, within about 5 minutes."
+ALREADY_QUEUED_MESSAGE = "That check is already waiting for the home agent."
 
 
 @bp.get("/devices")
@@ -91,7 +96,7 @@ def dashboard_data():
 def topology():
     """Draw saved devices as a parent and child tree."""
     try:
-        overview = present_overview(get_device_overview(_database_path()))
+        overview = _private_overview(present_overview(get_device_overview(_database_path())))
     except DatabaseError:
         return _database_page("The topology could not be loaded.")
     return render_template(
@@ -187,9 +192,12 @@ def device_detail(device_id):
                 **ping_labels,
             }
         )
+    if not can_view_private():
+        device = hide_private(device)
     return render_template(
         "devices/detail.html",
         device=device,
+        queued=_queued_for(device["id"]),
         history=history,
         history_hidden=history_hidden,
         tcp_ports=ALLOWED_TCP_PORTS,
@@ -205,7 +213,7 @@ def poll_device_snmp(device_id):
     device = _find_device(device_id)
     back = redirect(url_for("devices.device_detail", device_id=device["id"]) + "#snmp-heading")
     if _hosted():
-        flash(HOSTED_CHECK_MESSAGE)
+        flash(HOSTED_SNMP_MESSAGE)
         return back
     if not _acquire_check():
         flash("A check is already running. Wait for it to finish.")
@@ -249,7 +257,7 @@ def check_device_port(device_id):
     """Try one allowed TCP port on one saved device and store the result."""
     device = _find_device(device_id)
     if _hosted():
-        flash(HOSTED_CHECK_MESSAGE)
+        _queue_check(device["id"], "tcp", request.form.get("port", ""))
         return redirect(url_for("devices.device_detail", device_id=device["id"]))
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
@@ -285,7 +293,7 @@ def check_device(device_id):
     """Ping one saved device and store the structured result."""
     device = _find_device(device_id)
     if _hosted():
-        flash(HOSTED_CHECK_MESSAGE)
+        _queue_check(device["id"], "ping")
         return _after_check(device["id"])
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
@@ -304,7 +312,7 @@ def check_device(device_id):
 def check_all_devices():
     """Ping saved devices in a bounded batch and store every finished result."""
     if _hosted():
-        flash(HOSTED_CHECK_MESSAGE)
+        _queue_all_checks()
         return redirect(url_for("devices.inventory"))
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
@@ -509,8 +517,71 @@ def _database_path():
     return current_app.config["DATABASE_PATH"]
 
 
+def _queue_check(device_id, check_type, port=None):
+    """Hosted mode: leave a check for the home agent instead of running it."""
+    try:
+        added = queue_check_request(
+            _database_path(),
+            device_id=device_id,
+            check_type=check_type,
+            port=port,
+            max_age_minutes=current_app.config["CHECK_REQUEST_MAX_AGE_MINUTES"],
+        )
+    except ValidationError as exc:
+        flash(str(exc))
+        return
+    except DatabaseError:
+        flash("The check could not be queued.")
+        return
+    flash(QUEUED_MESSAGE if added else ALREADY_QUEUED_MESSAGE)
+
+
+def _queue_all_checks():
+    try:
+        devices = list_devices(_database_path())[: current_app.config["AGENT_BATCH_LIMIT"]]
+        added = 0
+        for device in devices:
+            added += queue_check_request(
+                _database_path(),
+                device_id=device["id"],
+                max_age_minutes=current_app.config["CHECK_REQUEST_MAX_AGE_MINUTES"],
+            )
+    except ValidationError as exc:
+        flash(str(exc))
+        return
+    except DatabaseError:
+        flash("The checks could not be queued.")
+        return
+    if not devices:
+        flash("There are no devices to check.")
+        return
+    flash(
+        f"Queued {_count_phrase(added, 'check', 'checks')} for the home agent. "
+        "It runs them on its next run, within about 5 minutes."
+    )
+
+
 def _hosted():
     return bool(current_app.config.get("HOSTED_MODE"))
+
+
+def _private_overview(overview):
+    """Signed out: drop every address and description before anything is rendered."""
+    if can_view_private():
+        return overview
+    return {**overview, "devices": [hide_private(device) for device in overview["devices"]]}
+
+
+def _queued_for(device_id):
+    if not _hosted():
+        return []
+    try:
+        pending = list_pending_check_requests(
+            _database_path(), max_age_minutes=current_app.config["CHECK_REQUEST_MAX_AGE_MINUTES"]
+        )
+    except (ValidationError, DatabaseError):
+        return []
+    return [item for item in pending if item["device_id"] == device_id]
 
 
 def _acquire_check():
@@ -635,13 +706,15 @@ def _find_device(device_id):
 
 def _dashboard_context():
     """Load the dashboard, then apply the current filter and grouping."""
-    overview = present_overview(get_device_overview(_database_path()))
+    overview = _private_overview(present_overview(get_device_overview(_database_path())))
     changes = present_status_changes(list_status_changes(_database_path(), limit=10))
     incidents = present_incidents(list_incidents(_database_path(), limit=10))
     overview, device_filter = _filtered_overview(overview)
     _attach_history(overview["devices"], 30)
     group_by = _requested_group()
     overview["incidents"] = incidents
+    overview["private_hidden"] = not can_view_private()
+    overview["read_only"] = not is_admin()
     latest = latest_result_time(_database_path())
     overview["last_updated"] = checked_label(latest) if latest else "No checks saved yet"
     overview["group_by"] = group_by

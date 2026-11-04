@@ -14,6 +14,9 @@
   // The read-only demo marks its JSON with sample_data. Rows rebuilt from it
   // get a View link, matching the server-rendered rows, instead of actions.
   var sampleData = false;
+  // Signed out on a site with sign-in: addresses and descriptions are left
+  // out of the JSON, and rows get a View link instead of actions.
+  var privateHidden = false;
 
   refreshButton.addEventListener("click", refreshStatus);
 
@@ -49,7 +52,8 @@
   }
 
   function renderDashboard(data) {
-    sampleData = data.sample_data === true;
+    sampleData = data.sample_data === true || data.read_only === true;
+    privateHidden = data.private_hidden === true;
     ["total", "online", "offline", "unknown", "error"].forEach(function (key) {
       var value = document.querySelector('[data-count="' + key + '"]');
       value.textContent = String(data.summary[key]);
@@ -162,7 +166,7 @@
   function deviceRow(device) {
     var row = document.createElement("tr");
     row.appendChild(nameCell(device));
-    row.appendChild(textCell("IP address", device.ip_address));
+    row.appendChild(textCell("IP address", device.ip_address || "Hidden"));
     row.appendChild(textCell("Device type", device.device_type));
     row.appendChild(textCell("Location", device.location_label));
     row.appendChild(textCell("VLAN", device.vlan_label));
@@ -181,11 +185,13 @@
     var link = document.createElement("a");
     link.href = "/devices/" + device.id;
     link.textContent = device.name;
-    var description = document.createElement("span");
-    description.className = "secondary";
-    description.textContent = device.description || "No description";
     cell.appendChild(link);
-    cell.appendChild(description);
+    if (!privateHidden) {
+      var description = document.createElement("span");
+      description.className = "secondary";
+      description.textContent = device.description || "No description";
+      cell.appendChild(description);
+    }
     cell.appendChild(historyBar(device));
     return cell;
   }

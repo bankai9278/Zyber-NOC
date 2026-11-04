@@ -38,7 +38,7 @@
           {% endfor %}
           {% for node in topology.nodes %}
             <a class="topo-node topo-{{ node.status }}" data-node="{{ node.id }}" data-parent="{{ node.parent_id or '' }}" href="{{ url_for('devices.device_detail', device_id=node.id) }}">
-              <title>{{ node.name }} {{ node.ip_address }}</title>
+              <title>{{ node.name }}{% if node.ip_address %} {{ node.ip_address }}{% endif %}</title>
               {% if node.status == "offline" %}
               <rect class="topo-halo" aria-hidden="true" x="{{ node.x - 5 }}" y="{{ node.y - 5 }}" width="{{ node.width + 10 }}" height="{{ node.height + 10 }}" rx="8" fill="none"></rect>
               {% endif %}

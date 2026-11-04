@@ -634,3 +634,13 @@ html.is-scrolled .page-home .header-inner {
   .tour-actions { flex-wrap: wrap; }
   .tour-actions button { flex: 1 1 auto; padding: .6rem .8rem; }
 }
+
+/* Sign out sits in the nav as a form, so it looks like the links beside it. */
+.site-header .nav-form { display: inline-flex; margin: 0; }
+.site-header .nav-button {
+  background: transparent; border: 0; box-shadow: none; cursor: pointer;
+  padding: .4rem .75rem; border-radius: var(--radius);
+  color: var(--muted); font-family: var(--font-mono); font-size: .82rem; text-transform: lowercase;
+}
+.site-header .nav-button:hover { color: var(--heading); background: var(--hover); }
+.login-form { max-width: 24rem; }

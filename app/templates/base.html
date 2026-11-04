@@ -29,8 +29,16 @@
         <a href="{{ url_for('devices.topology') }}" {% if request.endpoint == 'devices.topology' %}aria-current="page"{% endif %}>Topology</a>
         <a href="{{ url_for('site.reports') }}" {% if request.endpoint == 'site.reports' %}aria-current="page"{% endif %}>Reports</a>
         <a href="{{ url_for('site.about') }}" {% if request.endpoint == 'site.about' %}aria-current="page"{% endif %}>About</a>
-        {% if not demo_mode %}
+        {% if can_edit %}
         <a href="{{ url_for('devices.new_device') }}" {% if request.endpoint == 'devices.new_device' %}aria-current="page"{% endif %}>Add device</a>
+        {% endif %}
+        {% if signed_in %}
+        <form class="inline-form nav-form" method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" class="nav-button">Sign out</button>
+        </form>
+        {% elif auth_on %}
+        <a href="{{ url_for('auth.login') }}" {% if request.endpoint == 'auth.login' %}aria-current="page"{% endif %}>Sign in</a>
         {% endif %}
       </nav>
     </div>
@@ -57,6 +65,8 @@
         <p class="footer-title"><span class="brand-word"><span class="brand-mark">ZYBER</span><span class="brand-noc">NOC</span></span></p>
         {% if demo_mode %}
         <p class="footer-note">A read-only demo of a local Flask console. It shows sample data and runs no checks.</p>
+        {% elif hosted_mode %}
+        <p class="footer-note">A hosted Flask console. A home agent checks only saved devices and sends the results here.</p>
         {% else %}
         <p class="footer-note">A local Flask console. Runs on 127.0.0.1 and checks only saved devices.</p>
         {% endif %}
@@ -78,7 +88,7 @@
         </div>
       </nav>
     </div>
-    <p class="footer-base mono">{% if demo_mode %}sample data &middot; Python &middot; Flask &middot; no checks{% else %}127.0.0.1:5000 &middot; Python &middot; Flask &middot; Windows ping{% endif %}</p>
+    <p class="footer-base mono">{% if demo_mode %}sample data &middot; Python &middot; Flask &middot; no checks{% elif hosted_mode %}hosted &middot; Python &middot; Flask &middot; home agent{% else %}127.0.0.1:5000 &middot; Python &middot; Flask &middot; Windows ping{% endif %}</p>
   </footer>
   {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/premium.js') }}"></script>

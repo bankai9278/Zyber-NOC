@@ -53,7 +53,7 @@
         <header class="report-head">
           <div>
             <h3><a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a></h3>
-            <p class="mono report-ip">{{ device.ip_address }} &middot; {{ device.device_type }}</p>
+            <p class="mono report-ip">{% if device.ip_address %}{{ device.ip_address }} &middot; {% endif %}{{ device.device_type }}</p>
           </div>
           <span class="status status-{{ device.status_class }}">{{ device.status_label }}</span>
         </header>

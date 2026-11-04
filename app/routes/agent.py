@@ -14,8 +14,10 @@ from app.alerts import notify_outage
 from app.database import (
     DatabaseError,
     ValidationError,
+    complete_check_requests,
     get_device,
     list_devices,
+    list_pending_check_requests,
     prune_monitoring_results,
     save_monitoring_result,
     validate_reported_result,
@@ -46,9 +48,18 @@ def require_agent_key():
 
 @bp.get("/devices")
 def agent_devices():
-    """List the saved devices the agent should check, oldest first."""
+    """List the saved devices the agent should check, oldest first.
+
+    ``requests`` holds Check now requests queued from the website. The
+    agent runs them and names them in ``completed_requests`` when it posts.
+    """
     try:
         devices = list_devices(_database_path())
+        requests = list_pending_check_requests(
+            _database_path(),
+            max_age_minutes=current_app.config["CHECK_REQUEST_MAX_AGE_MINUTES"],
+            limit=current_app.config["AGENT_BATCH_LIMIT"],
+        )
     except DatabaseError:
         return {"error": "The device inventory could not be loaded."}, 500
     devices = sorted(devices, key=lambda device: device["id"])
@@ -57,6 +68,15 @@ def agent_devices():
         "devices": [
             {"id": device["id"], "ip_address": device["ip_address"], "checks": [{"check_type": "ping"}]}
             for device in devices[:limit]
+        ],
+        "requests": [
+            {
+                "id": item["id"],
+                "device_id": item["device_id"],
+                "check_type": item["check_type"],
+                "port": item["port"],
+            }
+            for item in requests
         ],
         "batch_limit": limit,
     }
@@ -80,8 +100,14 @@ def receive_results():
     if not isinstance(payload, dict) or not isinstance(payload.get("results"), list):
         return {"error": "The body must be a JSON object with a results list."}, 400
     rows = payload["results"]
-    if len(rows) > current_app.config["AGENT_BATCH_LIMIT"]:
+    completed = payload.get("completed_requests", [])
+    limit = current_app.config["AGENT_BATCH_LIMIT"]
+    if len(rows) > limit:
         return {"error": "Too many results in one request."}, 413
+    if not isinstance(completed, list) or len(completed) > limit:
+        return {"error": "completed_requests must be a list of at most the batch limit."}, 400
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 1 for value in completed):
+        return {"error": "completed_requests must hold positive whole numbers."}, 400
 
     validated = []
     for index, row in enumerate(rows):
@@ -103,6 +129,10 @@ def receive_results():
         saved += 1
         _alert_on_outage(stored)
 
+    try:
+        complete_check_requests(_database_path(), completed)
+    except (ValidationError, DatabaseError):
+        pass
     try:
         prune_monitoring_results(_database_path(), current_app.config["RESULT_RETENTION_DAYS"])
     except (ValidationError, DatabaseError):

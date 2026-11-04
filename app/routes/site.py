@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, abort, current_app, render_template
 
+from app.auth import can_view_private, hide_private
 from app.database import (
     DatabaseError,
     get_device_overview,
@@ -75,8 +76,9 @@ def _collect(with_history_bars=False):
 
     devices = []
     all_results = []
+    private = can_view_private()
     for raw in overview["devices"]:
-        device = present_device(raw)
+        device = present_device(raw if private else hide_private(raw))
         results = histories.get(raw["id"], [])
         all_results.extend(results)
         device.update(_device_report(results, incidents_by_device.get(raw["id"], [])))

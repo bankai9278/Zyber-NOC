@@ -26,14 +26,14 @@
       <tr>
         <td data-label="Device name">
           <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">{{ device.name }}</a>
-          <span class="secondary">{{ device.description or "No description" }}</span>
+          {% if show_private %}<span class="secondary">{{ device.description or "No description" }}</span>{% endif %}
           <div class="history-bar history-bar-compact">
             {% for block in device.history_bar.blocks %}
               <span class="history-block history-{{ block.kind }}" title="{{ block.title }}"></span>
             {% endfor %}
           </div>
         </td>
-        <td data-label="IP address"><span class="visually-hidden">IP address: </span><span class="mono">{{ device.ip_address }}</span></td>
+        <td data-label="IP address"><span class="visually-hidden">IP address: </span><span class="mono">{{ device.ip_address or "Hidden" }}</span></td>
         <td data-label="Device type"><span class="visually-hidden">Device type: </span>{{ device.device_type }}</td>
         <td data-label="Location"><span class="visually-hidden">Location: </span>{{ device.location_label }}</td>
         <td data-label="VLAN"><span class="visually-hidden">VLAN: </span>{{ device.vlan_label }}</td>
@@ -44,7 +44,7 @@
         <td data-label="Last checked"><span class="visually-hidden">Last checked: </span>{{ device.checked_label }}</td>
         <td data-label="Actions">
           <div class="row-actions">
-            {% if demo_mode %}
+            {% if not can_edit %}
             <a href="{{ url_for('devices.device_detail', device_id=device.id) }}">View</a>
             {% else %}
             <form class="inline-form" method="post" action="{{ url_for('devices.check_device', device_id=device.id) }}">
@@ -68,21 +68,21 @@
       {% if demo_mode %}
       <p class="lede">Sample data for this read-only demo. Checks are turned off, so nothing here is a live reading.</p>
       {% elif hosted_mode %}
-      <p class="lede">A home agent checks every saved device on a schedule and sends the results here. This website never pings anything itself.</p>
+      <p class="lede">A home agent checks every saved device on a schedule and sends the results here. This website never pings anything itself.{% if can_edit %} Check now and Check all leave a request that the agent runs on its next run.{% else %} Sign in to see addresses and descriptions.{% endif %}</p>
       {% else %}
       <p class="lede">Check now pings one saved device. Check all pings up to 20 saved devices, two at a time.</p>
       {% endif %}
       <p class="status-note last-updated">{% if hosted_mode %}Last result from the home agent{% else %}Last check saved{% endif %}: <span id="last-updated">{{ last_updated }}</span></p>
     </div>
     <div class="row-actions">
-      {% if devices and not demo_mode %}
+      {% if devices and can_edit %}
         <form class="inline-form" method="post" action="{{ url_for('devices.check_all_devices') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button type="submit" data-loading-label="Checking devices">Check all</button>
         </form>
       {% endif %}
       <button type="button" id="refresh-status">Refresh status</button>
-      {% if not demo_mode %}
+      {% if can_edit %}
       <a class="button primary" href="{{ url_for('devices.new_device') }}">Add device</a>
       {% endif %}
     </div>

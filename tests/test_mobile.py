@@ -109,9 +109,10 @@ def test_phone_markup_stays_csp_safe(demo_client, path):
 
 def test_dashboard_refresh_keeps_view_links_in_demo():
     # Refresh rebuilds the rows from /api/dashboard. In demo mode that JSON has
-    # sample_data, and the rebuilt rows must not bring back Check now, Edit, or Delete.
+    # sample_data (or read_only when signed out), and the rebuilt rows must not
+    # bring back Check now, Edit, or Delete.
     script = (STATIC / "js" / "dashboard.js").read_text(encoding="utf-8")
-    assert "sampleData = data.sample_data === true;" in script
+    assert "sampleData = data.sample_data === true || data.read_only === true;" in script
     branch = script[script.index("if (sampleData) {"):script.index("actions.appendChild(checkForm(device));")]
     assert 'view.textContent = "View";' in branch
     assert "return cell;" in branch

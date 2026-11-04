@@ -149,12 +149,15 @@ def plan_checks(device_list):
 
     Returns (jobs, skipped). A device whose address fails validation gets
     an error result instead of a check, so the dashboard shows the problem.
+    Queued TCP requests become extra checks of devices in the list; queued
+    pings are covered by the routine ping every device already gets.
     """
     devices = device_list.get("devices") if isinstance(device_list, dict) else None
     if not isinstance(devices, list):
         raise AgentError("The website's device list was not in the expected shape.")
     jobs = []
     skipped = 0
+    addresses = {}
     for item in devices[:MAX_DEVICES]:
         device_id = item.get("id") if isinstance(item, dict) else None
         if isinstance(device_id, bool) or not isinstance(device_id, int) or device_id < 1:
@@ -165,12 +168,36 @@ def plan_checks(device_list):
         except ValidationError as exc:
             jobs.append({"device_id": device_id, "check_type": "ping", "refused": f"The agent refused this address: {exc}"})
             continue
+        addresses[device_id] = address
         checks = item.get("checks")
         if not isinstance(checks, list) or not checks:
             checks = [{"check_type": "ping"}]
         for check in checks:
             jobs.append(_planned_check(device_id, address, check))
+    for request in _valid_requests(device_list):
+        if request.get("check_type") == "tcp" and request["device_id"] in addresses:
+            device_id = request["device_id"]
+            jobs.append(_planned_check(device_id, addresses[device_id], request))
     return jobs, skipped + max(0, len(devices) - MAX_DEVICES)
+
+
+def _valid_requests(device_list):
+    requests = device_list.get("requests") if isinstance(device_list, dict) else None
+    if not isinstance(requests, list):
+        return []
+    valid = []
+    for item in requests[:MAX_DEVICES]:
+        if not isinstance(item, dict):
+            continue
+        ids = (item.get("id"), item.get("device_id"))
+        if all(not isinstance(value, bool) and isinstance(value, int) and value > 0 for value in ids):
+            valid.append(item)
+    return valid
+
+
+def handled_request_ids(device_list):
+    """Every queued request this run deals with: run, covered by the routine ping, or dropped."""
+    return [item["id"] for item in _valid_requests(device_list)]
 
 
 def _planned_check(device_id, address, check):
@@ -230,10 +257,11 @@ def run_once(config, *, transport=None, ping=check_connectivity, tcp=check_tcp_p
     _require_ok(status, device_list, "fetch the device list")
     jobs, skipped = plan_checks(device_list)
     rows = run_checks(jobs, concurrency=config["concurrency"], ping=ping, tcp=tcp)
+    completed = handled_request_ids(device_list)
     summary = {"checked": len(rows), "skipped": skipped, "saved": 0, "rejected": 0}
-    if not rows:
+    if not rows and not completed:
         return summary
-    status, answer = send("POST", "/api/agent/results", {"results": rows})
+    status, answer = send("POST", "/api/agent/results", {"results": rows, "completed_requests": completed})
     _require_ok(status, answer, "send the results")
     summary["saved"] = answer.get("saved", 0) if isinstance(answer, dict) else 0
     rejected = answer.get("rejected") if isinstance(answer, dict) else None

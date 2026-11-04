@@ -6,6 +6,7 @@ instead of hard-coding host names, ports, or file paths.
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -93,6 +94,18 @@ class Config:
     AGENT_MAX_BODY_BYTES = 128 * 1024
     # Results posted by the agent older than this are deleted.
     RESULT_RETENTION_DAYS = 90
+    # Queued Check now requests the agent has not picked up in this time are dropped.
+    CHECK_REQUEST_MAX_AGE_MINUTES = 60
+    # One admin user. Sign-in is on in hosted mode or when the hash is set.
+    # Make the hash with: python -m tools.zyber_secrets password-hash
+    ADMIN_USERNAME = _env_text("ZYBER_ADMIN_USERNAME") or "admin"
+    ADMIN_PASSWORD_HASH = _env_text("ZYBER_ADMIN_PASSWORD_HASH")
+    # Each failed sign-in waits this long, and 5 failures in 15 minutes lock
+    # that address out for the rest of the 15 minutes (per web process).
+    LOGIN_FAILURE_DELAY_SECONDS = 1
+    LOGIN_MAX_FAILURES = 5
+    LOGIN_LOCKOUT_SECONDS = 15 * 60
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
 
 
 class TestConfig(Config):
@@ -122,3 +135,6 @@ class TestConfig(Config):
     # Tests turn hosted mode and the agent key on themselves.
     HOSTED_MODE = False
     AGENT_KEY = ""
+    ADMIN_USERNAME = "admin"
+    ADMIN_PASSWORD_HASH = ""
+    LOGIN_FAILURE_DELAY_SECONDS = 0
