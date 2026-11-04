@@ -55,6 +55,10 @@
       value.textContent = String(data.summary[key]);
     });
     renderIncidents(data.incidents || []);
+    var lastUpdated = document.getElementById("last-updated");
+    if (lastUpdated && typeof data.last_updated === "string") {
+      lastUpdated.textContent = data.last_updated;
+    }
 
     var grouped = Array.isArray(data.groups);
     if (grouped) {

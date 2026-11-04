@@ -9,6 +9,7 @@ from app.config import PROJECT_ROOT, Config
 from app.csrf import current_csrf_token, rejected_csrf
 from app.database import initialize_database
 from app.demo import seed_demo_database
+from app.routes.agent import bp as agent_bp
 from app.routes.devices import bp as devices_bp
 from app.routes.devices import start_scheduled_checks
 from app.routes.health import bp as health_bp
@@ -29,6 +30,8 @@ DEMO_BLOCKED_ENDPOINTS = frozenset(
     }
 )
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+# The agent API is not a browser form. It proves itself with the agent key instead.
+CSRF_EXEMPT_ENDPOINTS = frozenset({"agent.receive_results"})
 
 
 def create_app(config_class=Config):
@@ -42,6 +45,8 @@ def create_app(config_class=Config):
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     _use_local_secret(app)
+    # Demo mode wins: a demo copy never shows live data.
+    app.config["HOSTED_MODE"] = bool(app.config.get("HOSTED_MODE")) and not app.config.get("DEMO_MODE")
     if app.config.get("DEMO_MODE"):
         # The demo never touches the real inventory. It reads a fresh sample file.
         app.config["DATABASE_PATH"] = seed_demo_database(app.config["DEMO_DATABASE_PATH"])
@@ -49,6 +54,7 @@ def create_app(config_class=Config):
     app.register_blueprint(health_bp)
     app.register_blueprint(devices_bp)
     app.register_blueprint(site_bp)
+    app.register_blueprint(agent_bp)
 
     @app.after_request
     def add_security_headers(response):
@@ -73,10 +79,15 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_demo_mode():
-        return {"demo_mode": bool(app.config.get("DEMO_MODE"))}
+        return {
+            "demo_mode": bool(app.config.get("DEMO_MODE")),
+            "hosted_mode": bool(app.config.get("HOSTED_MODE")),
+        }
 
     @app.before_request
     def protect_forms():
+        if request.endpoint in CSRF_EXEMPT_ENDPOINTS:
+            return None
         if rejected_csrf():
             return render_template(
                 "error.html",

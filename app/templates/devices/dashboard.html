@@ -67,9 +67,12 @@
       <h1>Dashboard</h1>
       {% if demo_mode %}
       <p class="lede">Sample data for this read-only demo. Checks are turned off, so nothing here is a live reading.</p>
+      {% elif hosted_mode %}
+      <p class="lede">A home agent checks every saved device on a schedule and sends the results here. This website never pings anything itself.</p>
       {% else %}
       <p class="lede">Check now pings one saved device. Check all pings up to 20 saved devices, two at a time.</p>
       {% endif %}
+      <p class="status-note last-updated">{% if hosted_mode %}Last result from the home agent{% else %}Last check saved{% endif %}: <span id="last-updated">{{ last_updated }}</span></p>
     </div>
     <div class="row-actions">
       {% if devices and not demo_mode %}

@@ -19,6 +19,7 @@ from app.database import (
     get_device_overview,
     get_monitoring_history,
     get_snmp_view,
+    latest_result_time,
     list_devices,
     list_incidents,
     list_monitoring_window,
@@ -51,10 +52,12 @@ from app.presentation import (
     topology_map,
     toronto_window,
     TORONTO,
+    checked_label,
 )
 
 bp = Blueprint("devices", __name__)
 _check_lock = threading.Lock()
+HOSTED_CHECK_MESSAGE = "This website does not check devices itself. The home agent checks them and sends the results."
 
 
 @bp.get("/devices")
@@ -201,6 +204,9 @@ def poll_device_snmp(device_id):
     """Read one saved device's interfaces over SNMP and store what it answered."""
     device = _find_device(device_id)
     back = redirect(url_for("devices.device_detail", device_id=device["id"]) + "#snmp-heading")
+    if _hosted():
+        flash(HOSTED_CHECK_MESSAGE)
+        return back
     if not _acquire_check():
         flash("A check is already running. Wait for it to finish.")
         return back
@@ -242,6 +248,9 @@ def poll_device_snmp(device_id):
 def check_device_port(device_id):
     """Try one allowed TCP port on one saved device and store the result."""
     device = _find_device(device_id)
+    if _hosted():
+        flash(HOSTED_CHECK_MESSAGE)
+        return redirect(url_for("devices.device_detail", device_id=device["id"]))
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
         return redirect(url_for("devices.device_detail", device_id=device["id"]))
@@ -275,6 +284,9 @@ def check_device_port(device_id):
 def check_device(device_id):
     """Ping one saved device and store the structured result."""
     device = _find_device(device_id)
+    if _hosted():
+        flash(HOSTED_CHECK_MESSAGE)
+        return _after_check(device["id"])
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
         return _after_check(device["id"])
@@ -291,6 +303,9 @@ def check_device(device_id):
 @bp.post("/devices/check")
 def check_all_devices():
     """Ping saved devices in a bounded batch and store every finished result."""
+    if _hosted():
+        flash(HOSTED_CHECK_MESSAGE)
+        return redirect(url_for("devices.inventory"))
     if not _acquire_check():
         flash("A connectivity check is already running. Wait for it to finish.")
         return redirect(url_for("devices.inventory"))
@@ -351,7 +366,7 @@ def _perform_check_all():
 
 def scheduled_interval_seconds(app):
     """Return the wait between scheduled checks, or None when they stay off."""
-    if app.config.get("DEMO_MODE"):
+    if app.config.get("DEMO_MODE") or app.config.get("HOSTED_MODE"):
         return None
     if app.config.get("TESTING") or not app.config.get("SCHEDULED_CHECKS_ENABLED"):
         return None
@@ -383,6 +398,8 @@ def run_scheduled_checks(app):
     """Run one Check all cycle if no other check is already running."""
     if app.config.get("DEMO_MODE"):
         return "demo"
+    if app.config.get("HOSTED_MODE"):
+        return "hosted"
     with app.app_context():
         if not _acquire_check():
             return "busy"
@@ -490,6 +507,10 @@ def _csv_cell(value):
 
 def _database_path():
     return current_app.config["DATABASE_PATH"]
+
+
+def _hosted():
+    return bool(current_app.config.get("HOSTED_MODE"))
 
 
 def _acquire_check():
@@ -621,6 +642,8 @@ def _dashboard_context():
     _attach_history(overview["devices"], 30)
     group_by = _requested_group()
     overview["incidents"] = incidents
+    latest = latest_result_time(_database_path())
+    overview["last_updated"] = checked_label(latest) if latest else "No checks saved yet"
     overview["group_by"] = group_by
     overview["groups"] = group_devices(overview["devices"], group_by)
     return overview, changes, device_filter

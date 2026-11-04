@@ -8,7 +8,7 @@ device name or error message cannot change the query.
 
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from ipaddress import ip_address
 from pathlib import Path
 
@@ -497,6 +497,95 @@ def save_monitoring_result(
         # The status before this check, or None for a device's first result.
         saved["previous_status"] = previous["status"] if previous is not None else None
         return saved
+
+
+REPORTED_RESULT_FIELDS = frozenset(
+    {
+        "device_id",
+        "status",
+        "check_type",
+        "port",
+        "response_time_ms",
+        "error_details",
+        "min_ms",
+        "median_ms",
+        "max_ms",
+        "jitter_ms",
+        "packet_loss_pct",
+    }
+)
+_LATENCY_FIELDS = ("response_time_ms", "min_ms", "median_ms", "max_ms", "jitter_ms")
+_PING_ONLY_FIELDS = ("min_ms", "median_ms", "max_ms", "jitter_ms", "packet_loss_pct")
+
+
+def validate_reported_result(item):
+    """Check one result sent by the home agent before anything is saved.
+
+    The same rules as a local check apply, plus the shapes a real ping or
+    TCP check produces: no latency on a failed check, no packet loss on an
+    error, and no ping statistics on a TCP row. The device itself is checked
+    when the row is saved.
+    """
+    if not isinstance(item, dict):
+        raise ValidationError("Each result must be an object.")
+    if set(item) - REPORTED_RESULT_FIELDS:
+        raise ValidationError("A result has a field that is not allowed.")
+    result = _validate_result(
+        item.get("device_id"),
+        item.get("status"),
+        item.get("response_time_ms"),
+        item.get("error_details"),
+        item.get("check_type"),
+        item.get("port"),
+        item.get("min_ms"),
+        item.get("median_ms"),
+        item.get("max_ms"),
+        item.get("jitter_ms"),
+        item.get("packet_loss_pct"),
+    )
+    if result["status"] != "online" and any(result[field] is not None for field in _LATENCY_FIELDS):
+        raise ValidationError("Only an online result can include response times.")
+    if result["status"] == "error" and result["packet_loss_pct"] is not None:
+        raise ValidationError("An error result cannot include packet loss.")
+    if result["check_type"] == "tcp" and any(result[field] is not None for field in _PING_ONLY_FIELDS):
+        raise ValidationError("A TCP result cannot include ping statistics.")
+    if result["median_ms"] is not None and result["response_time_ms"] != result["median_ms"]:
+        raise ValidationError("Response time must be the median reply time.")
+    stats = [result[field] for field in ("min_ms", "median_ms", "max_ms")]
+    if None not in stats and not stats[0] <= stats[1] <= stats[2]:
+        raise ValidationError("Minimum, median, and maximum response times are out of order.")
+    return result
+
+
+def prune_monitoring_results(database_path, retention_days):
+    """Delete results and status changes older than the retention window.
+
+    Returns how many monitoring results were deleted.
+    """
+    if isinstance(retention_days, bool) or not isinstance(retention_days, int) or retention_days < 1:
+        raise ValidationError("Retention must be a positive whole number of days.")
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat(timespec="seconds")
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        deleted = connection.execute(
+            "DELETE FROM monitoring_results WHERE recorded_at < ?",
+            (cutoff,),
+        ).rowcount
+        connection.execute(
+            "DELETE FROM status_changes WHERE recorded_at < ?",
+            (cutoff,),
+        )
+        return deleted
+
+
+def latest_result_time(database_path):
+    """Return the newest saved check time for any device, or None."""
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        row = connection.execute(
+            "SELECT MAX(recorded_at) AS recorded_at FROM monitoring_results"
+        ).fetchone()
+        return row["recorded_at"]
 
 
 def list_status_changes(database_path, limit=10):

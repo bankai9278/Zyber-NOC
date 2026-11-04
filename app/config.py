@@ -81,6 +81,18 @@ class Config:
     SNMP_PORT = _env_port("ZYBER_SNMP_PORT", 161)
     SNMP_TIMEOUT_SECONDS = 2
     SNMP_TOTAL_SECONDS = 15
+    # Hosted copy with live data. Off unless ZYBER_HOSTED_MODE is 1, true, yes, or on.
+    # The website never pings or opens a connection itself. A home agent
+    # (agent/agent.py) checks the saved devices and posts the results.
+    HOSTED_MODE = _env_flag("ZYBER_HOSTED_MODE")
+    # Shared secret the home agent sends in the X-Zyber-Agent-Key header.
+    # The agent API stays off when this is empty or shorter than 32 characters.
+    AGENT_KEY = _env_text("ZYBER_AGENT_KEY")
+    # One agent post can carry at most this many results and this many bytes.
+    AGENT_BATCH_LIMIT = 200
+    AGENT_MAX_BODY_BYTES = 128 * 1024
+    # Results posted by the agent older than this are deleted.
+    RESULT_RETENTION_DAYS = 90
 
 
 class TestConfig(Config):
@@ -107,3 +119,6 @@ class TestConfig(Config):
     # Tests point SNMP at an in-process simulator on a free port.
     SNMP_COMMUNITY = "public"
     SNMP_PORT = 161
+    # Tests turn hosted mode and the agent key on themselves.
+    HOSTED_MODE = False
+    AGENT_KEY = ""
