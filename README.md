@@ -18,7 +18,7 @@ The screenshots were taken from the app running in read-only demo mode, so every
 
 Zyber NOC is a local Windows prototype for a junior network technician or IT support portfolio. It keeps an inventory of devices you choose to monitor, checks those devices with Windows ping, stores each result, and shows the latest status on a dashboard.
 
-This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in read-only demo mode: it never pings anything and cannot be changed.
+This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in read-only demo mode: it never pings anything and cannot be changed. A hosted live mode is also built: the website shows real results that a small agent on the home PC checks and sends (see [Hosted live mode](#hosted-live-mode-with-a-home-agent-optional)).
 
 ## Features
 
@@ -49,6 +49,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Show a 90-day status bar on the device page and a 30-day bar on each dashboard row. Colour comes from the worst saved status that day. Days with no checks stay grey. The 90-day uptime uses only checks in that window.
 - Download one device's history as CSV. The file keeps the stored UTC timestamps.
 - Show timestamps in America/Toronto local time. The database still stores UTC.
+- Optional hosted live mode: the website never pings; a home agent (`agent/agent.py`) checks the saved devices every 5 minutes and posts the results with a shared key. One admin sign-in; signed-out visitors see names and statuses but not addresses or descriptions. The dashboard shows when the last result arrived.
 - Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
 - Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
 - Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
@@ -99,6 +100,10 @@ flowchart TD
 | `app/routes/devices.py` | Dashboard, topology, add, edit, detail, check, and delete pages |
 | `app/routes/site.py` | Home, reports, and about. These pages only read saved data |
 | `app/routes/health.py` | `GET /health` |
+| `app/routes/agent.py` | Agent API for hosted mode: `GET /api/agent/devices` and `POST /api/agent/results`, both behind the agent key |
+| `app/auth.py` | Admin sign-in and sign-out, the sign-in rate limit, and hiding addresses and descriptions when signed out |
+| `agent/agent.py` | Home agent for hosted mode. Runs once: fetch devices, check them, post the results |
+| `tools/zyber_secrets.py` | Makes the agent key and the admin password hash |
 | `app/database.py` | SQLite tables and parameterized queries |
 | `app/monitoring.py` | Validates one saved address, runs Windows ping, and connects to an allowed TCP port |
 | `app/presentation.py` | Turns saved values into labels, Toronto times, the topology map, the latency chart, and the status bars |
@@ -106,11 +111,12 @@ flowchart TD
 | `app/templates/` | Server-rendered HTML, including `app/templates/site/` for home, reports, and about |
 | `app/static/` | `style.css`, `theme-terminal.css`, `premium.css`, `effects.css`, the dashboard and form scripts, `premium.js`, `effects.js`, the `grain.svg` texture, the `logo-yo.svg` initials logo (also the favicon), the older `favicon.svg`, and three static page images |
 
-The database has three tables:
+The main tables are these (SNMP polls and interfaces have their own two tables):
 
 - `devices` stores the name, IP address, device type, description, optional location, optional VLAN, optional parent device, and the time the device was added.
 - `monitoring_results` stores the device, status, response time in milliseconds when one was measured, a short error note when needed, whether the check was ping or TCP, the TCP port when one was used, the ping minimum, median, maximum, jitter, and packet loss when those were measured, and the UTC time of the check.
 - `status_changes` stores a device, the previous status, the new status, and the UTC time. A row is added only when the new status differs from the previous saved result.
+- `check_requests` stores Check now requests queued in hosted mode: the device, ping or TCP and port, when it was asked for, and when the agent finished it.
 
 ## Technologies
 
@@ -267,7 +273,7 @@ tailscale serve --https=443 off
 
 Read this before using it:
 
-- Normal mode has **no login**. Anyone on your tailnet can add, edit, and delete devices and start checks. Only serve it when your tailnet holds just your own devices, and remove people from the tailnet you no longer trust.
+- Normal mode has **no login**. Anyone on your tailnet can add, edit, and delete devices and start checks. Only serve it when your tailnet holds just your own devices, and remove people from the tailnet you no longer trust. Setting `ZYBER_ADMIN_PASSWORD_HASH` before you start the app adds an admin sign-in (see [Sign-in](#sign-in)).
 - To show someone the project safely, serve the read-only demo instead: start the app with `$env:ZYBER_DEMO_MODE = "1"`, then serve that port.
 - **Never use `tailscale funnel`.** Funnel publishes the app to the whole internet, and this app's normal mode must never be public.
 
@@ -348,7 +354,116 @@ Close that PowerShell window, or run `Remove-Item Env:ZYBER_DEMO_MODE`, to go ba
 
 Render runs a web service with a start command, and a Flask app there normally uses `gunicorn`. That would be one new dependency (`gunicorn`), and it is not in `requirements.txt` yet. If you choose Render, add `gunicorn` to `requirements.txt`, then create a **Web Service** from the GitHub repository with build command `pip install -r requirements.txt`, start command `gunicorn run:app`, and environment variable `ZYBER_DEMO_MODE=1`. Render's free disk is temporary, which is fine because the demo database is rebuilt on every start.
 
-Never host the app without demo mode. Normal mode has no login and would let any visitor add devices and make the server ping them.
+Never host the app in plain normal mode. Without hosted mode it would let the server ping whatever a signed-in admin saves, and without a password hash nobody could sign in. Host either demo mode or hosted mode (next section).
+
+## Hosted live mode with a home agent (optional)
+
+The demo above shows sample data. Hosted mode shows **your real devices** on a public website, without the website ever reaching into your home network:
+
+```text
+home PC (agent/agent.py, every 5 minutes)              website (hosted mode)
+  1. GET  /api/agent/devices   ---- agent key ---->   list of saved devices and queued checks
+  2. ping / TCP-check each one on the home network
+  3. POST /api/agent/results   ---- agent key ---->   saved, status changes, incidents
+```
+
+- `ZYBER_HOSTED_MODE=1` turns it on. The website then never runs `ping`, never opens a TCP connection, never polls SNMP, and never starts scheduled checks. Demo mode wins if both are set.
+- The agent API is on only when `ZYBER_AGENT_KEY` is set to at least 32 characters. Every request must send the same value in the `X-Zyber-Agent-Key` header; the site compares it with `hmac.compare_digest`. These two routes are the only ones without a CSRF token, because they are not browser forms.
+- `GET /api/agent/devices` returns each saved device's id, IP address, and checks (`ping`), plus queued `requests`, at most 200.
+- `POST /api/agent/results` takes `{"results": [...], "completed_requests": [...]}`. At most 200 rows and 128 KB. Every row is checked with the same rules as a local check, plus the shapes a real check produces (no response time on a failed check, no packet loss on an error, no ping statistics on a TCP row, median equals response time). One bad row refuses the whole batch with `400`. A row for a device that was deleted while the agent ran is skipped and listed in `rejected`; the rest are saved. Status changes and outage alerts work as they do for local checks. After each post, results and status changes older than 90 days are deleted.
+- The dashboard shows **Last result from the home agent** with the time of the newest saved result.
+
+### Sign-in
+
+Hosted mode has one admin user. Sign-in is also on for the local app when `ZYBER_ADMIN_PASSWORD_HASH` is set. Without either, the local app works as before, with no password.
+
+| Signed out (anyone) | Signed in (admin) |
+|---|---|
+| Every page is read-only. Device names, statuses, and numbers are shown | Add, edit, and delete devices |
+| IP addresses and descriptions are hidden on every page and left out of `/api/dashboard` | Everything is shown |
+| CSV downloads, forms, and checks redirect to **Sign in** | **Check now**, **Check port**, and **Check all** queue a request. The agent runs it on its next run (within about 5 minutes) and marks it done. Requests not picked up within 60 minutes are dropped |
+
+- The username is `admin` (change it with `ZYBER_ADMIN_USERNAME`). The password is never stored: `ZYBER_ADMIN_PASSWORD_HASH` holds a `werkzeug.security` hash.
+- Sign-in and sign-out forms use the CSRF token. Signing in starts a fresh session with a new token. Sessions last 12 hours. Changing the password hash signs out every old session. In hosted mode the session cookie is `Secure` (HTTPS only).
+- Each wrong password waits 1 second. Five wrong attempts from one address within 15 minutes lock that address out for the rest of the 15 minutes. This is counted per web process, so it resets when the web app reloads.
+- SNMP polling is not available in hosted mode, because the agent only pings and checks TCP ports.
+
+### Make the two secrets
+
+From the project folder on this PC:
+
+```powershell
+.\.venv\Scripts\python.exe -m tools.zyber_secrets agent-key
+.\.venv\Scripts\python.exe -m tools.zyber_secrets password-hash
+```
+
+`agent-key` prints a random 64-character key. `password-hash` asks for a password twice (at least 12 characters, not shown on screen) and prints a hash that starts with `scrypt:`. Keep both somewhere private, such as a password manager. Never commit them.
+
+### Publish on PythonAnywhere
+
+These steps change the existing demo site into the live site. To keep the demo instead, skip this section.
+
+1. **Push the code** from this PC (PowerShell, in the project folder):
+
+   ```powershell
+   git push origin master
+   ```
+
+2. **Pull it on PythonAnywhere.** Open a **Bash console** there and run:
+
+   ```bash
+   cd ~/network-monitoring-dashboard
+   git pull
+   ```
+
+3. **Edit the WSGI file** (Web tab, the link next to *WSGI configuration file*). Replace the `ZYBER_DEMO_MODE` line so the file reads like this, with your own key and hash pasted between the quotes:
+
+   ```python
+   import os
+   import sys
+
+   path = "/home/<you>/network-monitoring-dashboard"
+   if path not in sys.path:
+       sys.path.insert(0, path)
+   os.environ["ZYBER_HOSTED_MODE"] = "1"
+   os.environ["ZYBER_AGENT_KEY"] = "paste the agent key here"
+   os.environ["ZYBER_ADMIN_PASSWORD_HASH"] = "paste the scrypt:... hash here"
+   from run import app as application
+   ```
+
+   Remove the `ZYBER_DEMO_MODE` line completely; if it stays, the site keeps showing sample data. The WSGI file is private to your PythonAnywhere account and is not in git.
+
+4. **Reload** the web app (the green button on the Web tab). Open the site, choose **Sign in**, and sign in as `admin`. The live site starts with an empty inventory (`instance/monitor.db` on PythonAnywhere). Add your devices there.
+
+### Set up the agent on this PC
+
+1. Copy the example config and fill it in:
+
+   ```powershell
+   Copy-Item agent\config.example.json agent\config.json
+   notepad agent\config.json
+   ```
+
+   Set `site_url` to `https://zybernoc.pythonanywhere.com` (or your own address) and `agent_key` to the same key you put in the WSGI file. `concurrency` (1 to 4, default 2) is how many checks run at once. `agent/config.json` is in `.gitignore`.
+
+2. Test the connection, then do one real run:
+
+   ```powershell
+   .\.venv\Scripts\python.exe agent\agent.py --check-connection
+   .\.venv\Scripts\python.exe agent\agent.py
+   ```
+
+   The second command prints a line such as `Checked 3, saved 3, rejected 0, skipped 0.` Each run is also added to `agent/agent.log` (git-ignored; it is renamed to `agent.log.old` above 512 KB).
+
+3. Schedule it every 5 minutes with Windows Task Scheduler. In PowerShell (no administrator needed):
+
+   ```powershell
+   schtasks /Create /TN "Zyber NOC agent" /SC MINUTE /MO 5 /F /TR "\"C:\Users\yash3\Desktop\network-monitoring-dashboard\.venv\Scripts\pythonw.exe\" \"C:\Users\yash3\Desktop\network-monitoring-dashboard\agent\agent.py\""
+   ```
+
+   `pythonw.exe` runs it without opening a window. The task runs while you are signed in to Windows. To run it now: `schtasks /Run /TN "Zyber NOC agent"`. To check it: `schtasks /Query /TN "Zyber NOC agent"`. To remove it: `schtasks /Delete /TN "Zyber NOC agent" /F`.
+
+What the agent does not trust: it validates every address from the website again with the inventory's own rules (no hostnames, broadcast, multicast, unspecified, or reserved addresses), only tries TCP ports 22, 53, 80, 443, and 3389, checks at most 200 devices per run, requires `https://` (plain `http://` is allowed only for `127.0.0.1` while testing), and does not follow redirects, so the key is only ever sent to `site_url`. It uses only the Python standard library plus this project's own `app/monitoring.py`, so run it with the project's `.venv` Python. It does not use `subprocess` itself; ping runs through the same `shell=False` code as the local app.
 
 ## Screenshots
 
@@ -359,7 +474,8 @@ The images at the top of this file are in `docs/screenshots/`. They were capture
 - This is a local prototype. It is bound to `127.0.0.1` and is not a production monitoring system.
 - The hosted demo shows sample data only. It cannot check real devices or save changes.
 - Outage alerts are off by default, cover only changes to offline or error, and are only as fast as the checks. Without scheduled checks, nothing alerts until someone runs a check.
-- There is no login. Anyone who can use this Windows session can open the dashboard.
+- The local app has no login unless `ZYBER_ADMIN_PASSWORD_HASH` is set. Anyone who can use this Windows session can open the dashboard. Hosted mode has one admin user only, and its failed sign-in counter is per web process.
+- In hosted mode, results are only as fresh as the agent's last run (every 5 minutes), queued checks wait for that run, the agent runs only while the home PC is on and signed in, and SNMP is not available.
 - Connectivity checks use ICMP through Windows `ping` only. They use 5 attempts and a 1000 millisecond wait for each reply.
 - A host or firewall that blocks ICMP can appear Offline even though it answers other traffic.
 - Windows can also block `ping` when the command is not permitted. The app then saves an error instead of a response time.
@@ -380,7 +496,7 @@ The images at the top of this file are in `docs/screenshots/`. They were capture
 These items are not built:
 
 - SNMP v3, scheduled SNMP polls, interface error counters, and a traffic chart over time.
-- Authentication so each technician has their own login.
+- Separate logins for each technician. Hosted mode has one admin user.
 - Alert channels beyond the log file and email, such as a Windows notification or a chat webhook, and a recovery alert when a device comes back online.
 - A response-time chart longer than the latest 20 saved checks. The status bar already covers 90 days, but it does not plot latency.
 - TCP checks for ports other than 22, 53, 80, 443, and 3389.

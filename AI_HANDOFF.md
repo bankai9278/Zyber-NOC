@@ -16,7 +16,7 @@ It is a learning prototype on this PC. It is not a production monitor.
 
 ## Rules that must stay in place
 
-- Local Windows only. Bind to `127.0.0.1`. Do not add login, cloud hosting, Docker, or extra infrastructure unless a concrete defect requires it. The one exception, approved by the user on Nov 2, 2026, is the read-only demo (item 27): a public copy may be hosted only with `ZYBER_DEMO_MODE` on. Never host normal mode.
+- Local Windows only. Bind to `127.0.0.1`. Do not add Docker or extra infrastructure unless a concrete defect requires it. Two public modes are approved: the read-only demo (item 27, approved Nov 2, 2026), and hosted live mode with a home agent and one admin sign-in (items 38-40, approved by Jay on Nov 3, 2026). A public copy must run with `ZYBER_DEMO_MODE` or `ZYBER_HOSTED_MODE` on. Never host plain normal mode. In hosted mode the website itself must never ping, open a TCP connection, or poll SNMP.
 - Do not scan subnets, discover hosts, accept hostnames, or contact arbitrary systems. Ping, TCP-check, or SNMP-poll only devices already saved in the inventory. TCP ports are only 22, 53, 80, 443, and 3389. SNMP is read-only GetNext on the configured SNMP port (161 by default).
 - Use parameterized SQL (`?` placeholders). Never build SQL by string concatenation.
 - Keep CSRF checks on state-changing forms. Do not add Flask-WTF.
@@ -59,7 +59,7 @@ Tests do not need the server, and they must not send real pings:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-The last full run, after SNMP polling (Nov 3, 2026), was 336 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
+The last full run, after hosted mode, the home agent, and sign-in (Nov 3, 2026), was 482 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
 
 ## What is already built
 
@@ -105,6 +105,10 @@ The last full run, after SNMP polling (Nov 3, 2026), was 336 passed and 0 failed
 
 37. 3D globe and GSAP scroll scenes (Nov 3, 2026). Jay approved both libraries. `app/static/vendor/` holds `three.module.min.js` (Three.js 0.170.0, MIT, `three.LICENSE`), `gsap.min.js` and `ScrollTrigger.min.js` (GSAP 3.12.5, standard no-charge license), downloaded from jsDelivr's copy of the npm packages, plus a README with sources. No `<script>` tag in any page names them (a test checks). Globe: the topology page has a `3D globe` panel, `hidden` in the HTML; `effects.js` shows it only when the browser has WebGL 2, and on **Show 3D globe** it `import()`s `app/static/js/globe.js`, which imports Three.js. The globe reads the devices, parent links, status classes, names, and links straight from the 2D SVG already on the page, so it shows exactly the saved data: tree depth becomes latitude (roots at the top), the 2D left-to-right position becomes longitude, links are arcs, online links carry a moving packet, offline devices have a pulsing ring. Drag turns it; hovering shows the name and status; clicking opens the device. It auto-turns only with full motion, renders only while on screen, caps the pixel ratio (1 in lite mode), and says so in text if WebGL fails. GSAP: only on the home page, only after the reduced-motion return and only without `fx-lite`, `effects.js` adds the two scripts from `static/vendor/` and sets `html.fx-gsap`; ScrollTrigger scrubs the hero (moves up and fades), the hero field (parallax), each feature screenshot (zooms from 1.12 to 1 inside a clipped figure), the feature titles (letter spacing settles), the CTA (scales in), and the tech stack grid. Phones, slow PCs, and reduced motion never download GSAP. Tests: the vendor, globe, and GSAP tests in `tests/test_effects.py`. README screenshots were recaptured afterwards.
 
+38. Agent API and hosted mode (Nov 3, 2026, commit `610a14e`). `Config.HOSTED_MODE` reads `ZYBER_HOSTED_MODE` (same on/off rule as demo mode); `create_app` forces it off when demo mode is on. In hosted mode `scheduled_interval_seconds` returns None, `run_scheduled_checks` returns `"hosted"`, Poll SNMP is refused with a flash, and the check routes queue requests (item 40) instead of pinging. `app/routes/agent.py` (blueprint `agent`, prefix `/api/agent`): a `before_request` returns JSON 404 when `AGENT_KEY` (`ZYBER_AGENT_KEY`) is shorter than 32 characters or demo mode is on, and 401 unless the `X-Zyber-Agent-Key` header matches (`hmac.compare_digest` on UTF-8 bytes). `GET /api/agent/devices` returns `devices` (id, ip_address, `checks: [{"check_type": "ping"}]`, sorted by id, at most `AGENT_BATCH_LIMIT` 200), `requests` (pending queued checks), and `batch_limit`. `POST /api/agent/results` needs a Content-Length (411) of at most `AGENT_MAX_BODY_BYTES` 128 KB (413), a JSON object with a `results` list of at most 200 (413), and an optional `completed_requests` list of positive ints (400). Each row goes through `database.validate_reported_result`: only the 11 known fields, the normal `_validate_result` rules, plus no latency on offline/error, no packet loss on error, no ping-only fields on TCP, `response_time_ms == median_ms` when a median is set, and min <= median <= max. One bad row refuses the whole batch (400, `Result <index>: <message>`). Rows are saved with `save_monitoring_result` at server time, so status changes are written the same way; a row for a missing device is skipped and returned in `rejected`. Outage alerts run like local checks. After each post `prune_monitoring_results` deletes `monitoring_results` and `status_changes` older than `RESULT_RETENTION_DAYS` (90). `agent.receive_results` is the only CSRF-exempt endpoint (`CSRF_EXEMPT_ENDPOINTS` in `app/__init__.py`). The dashboard shows `Last check saved:` (hosted: `Last result from the home agent:`) from `latest_result_time`, or `No checks saved yet`; `/api/dashboard` includes `last_updated` and `dashboard.js` updates it on Refresh. Tests: `tests/test_agent_api.py`.
+39. Home agent (Nov 3, 2026, commit `4847be4`). `agent/agent.py`, standard library plus this project's `app` package (a test walks its imports), run with the `.venv` Python; it adds the project root to `sys.path` itself. Runs once per invocation. Config `agent/config.json` (git-ignored; example `agent/config.example.json`): `site_url` must be `https://`, or `http://` only for 127.0.0.1/localhost/::1, with no query, fragment, or credentials; `agent_key` at least 32 characters; `concurrency` 1-4, default 2. HTTP through `urllib` with a no-redirect opener (the key is never sent to a redirect target), 30 second timeout, 1 MB response cap. `plan_checks` re-validates every address with `database.normalize_ip_address`; a refused address becomes an `error` row (`The agent refused this address: ...`) and is never checked; bad ids are skipped; at most 200 devices; TCP only on the allowed ports. Queued TCP requests become extra checks; queued pings are covered by the routine ping; every valid request id is sent back in `completed_requests`. Checks call `check_connectivity` / `check_tcp_port` from `app/monitoring.py` with the normal config values, in a thread pool. `--check-connection` only fetches the device list. Each run appends one line to `agent/agent.log` (git-ignored, renamed to `agent.log.old` over 512 KB). README documents a Task Scheduler entry (`schtasks ... /SC MINUTE /MO 5` with `pythonw.exe`). Checked for real on Nov 3, 2026 against a local hosted-mode server: it pinged 127.0.0.1 (online) and 192.0.2.10 (offline) and both were saved. Tests: `tests/test_agent.py` (fake ping/TCP, the Flask test client as transport, and two local `http.server` instances for the header and redirect tests).
+40. Sign-in, private details, and queued checks (Nov 3, 2026, commit `777586f`). `app/auth.py`. `auth_enabled` is True when not in demo mode and either hosted mode is on or `ADMIN_PASSWORD_HASH` (`ZYBER_ADMIN_PASSWORD_HASH`) is set. Without it, `is_admin()` is True (local app as before) except in demo mode. One user, `ADMIN_USERNAME` (`ZYBER_ADMIN_USERNAME`, default `admin`). `/login` (GET/POST, CSRF) checks the username with `hmac.compare_digest` and the password with `werkzeug.security.check_password_hash` (a malformed hash just fails). Success clears the session, sets `session.permanent` (`PERMANENT_SESSION_LIFETIME` 12 hours), stores `admin_tag` (first 32 hex of SHA-256 of the hash, so a new hash signs everyone out; the hash itself is never in the cookie), and makes a new CSRF token. `next` is kept only when it is a local path (no scheme, `//`, or backslash). Failures: `time.sleep(LOGIN_FAILURE_DELAY_SECONDS)` (1; 0 in TestConfig), and `LOGIN_MAX_FAILURES` 5 within `LOGIN_LOCKOUT_SECONDS` 900 from one `remote_addr` returns 429 until the window passes; in-process only, at most 1000 tracked addresses. `/logout` is POST with CSRF. `SESSION_COOKIE_SECURE` is set in hosted mode outside tests. `require_admin` (registered after the demo hook, before CSRF) redirects every endpoint in `ADMIN_ENDPOINTS` (add, create, edit, delete confirm and delete, check, check port, check all, SNMP, history CSV) to `/login?next=...` when sign-in is on and the visitor is not signed in. `can_view_private()` is demo mode or admin; otherwise `hide_private` sets `ip_address` and `description` to None before rendering on the dashboard, `/api/dashboard` (which also gets `read_only` and `private_hidden`), device page, topology, home, and reports. Device names, types, locations, VLANs, statuses, and numbers stay public. Templates use `can_edit`, `show_private`, `auth_on`, `signed_in`, and `hosted_mode` from the context processor; the nav shows Sign in or a Sign out form (`.nav-form`, `.nav-button` at the end of `premium.css`). `dashboard.js` treats `read_only` like `sample_data` (View link only) and leaves out descriptions when `private_hidden`. Queue: table `check_requests` (device_id, check_type, port, requested_at, completed_at), deleted with its device. `queue_check_request` deletes finished and expired rows, returns False when the same check is already waiting, refuses past 200 waiting; `list_pending_check_requests` ignores rows older than `CHECK_REQUEST_MAX_AGE_MINUTES` (60); `complete_check_requests` ignores unknown ids. In hosted mode Check now queues a ping, Check port a TCP check (allowed ports only), Check all a ping per device; the device page says `N check(s) waiting for the home agent.` `tools/zyber_secrets.py`: `agent-key` prints `secrets.token_hex(32)`; `password-hash` asks twice with `getpass`, needs 12+ characters, prints `generate_password_hash` (scrypt). Tests: `tests/test_auth.py`.
+
 ## Routes
 
 | Method and path | Behavior |
@@ -126,6 +130,11 @@ The last full run, after SNMP polling (Nov 3, 2026), was 336 passed and 0 failed
 | `POST /devices/check` | Check all |
 | `POST /devices/<id>/snmp` | Poll SNMP: read the device's interfaces and save the poll. Blocked in demo mode |
 | `GET/POST /devices/<id>/delete` | Delete confirmation, then delete |
+| `GET/POST /login`, `POST /logout` | Admin sign-in and sign-out. Only when sign-in is on |
+| `GET /api/agent/devices` | Agent key required. Saved devices to check and queued requests |
+| `POST /api/agent/results` | Agent key required, no CSRF token. Saves a batch of results and finishes queued requests |
+
+When sign-in is on, every add, edit, delete, check, SNMP, and CSV route needs the admin; in hosted mode the check routes queue requests instead of checking.
 
 Unexpected exceptions render a safe page that says the request could not be completed. The page does not include the exception text.
 
@@ -134,6 +143,8 @@ Unexpected exceptions render a safe page that says the request could not be comp
 `devices`: id, name, ip_address, device_type, description, location, vlan, parent_id, created_at. IP is stored in canonical form. There is a unique index on `ip_address`. Location is optional text up to 100 characters. VLAN is optional and must be an integer from 1 to 4094. `parent_id` is null or another device's id. Existing databases gain the column through `ALTER TABLE`, and existing rows keep a null parent.
 
 `monitoring_results`: id, device_id, status, response_time_ms, error_details, check_type, port, min_ms, median_ms, max_ms, jitter_ms, packet_loss_pct, recorded_at. Status is `online`, `offline`, or `error`. `check_type` is `ping` or `tcp`. Ping rows have no port. TCP rows use port 22, 53, 80, 443, or 3389. Response time is null when it was not measured, and must be 0 or greater when it is stored. For a ping with replies, `response_time_ms` and `median_ms` are the same median. The other latency fields are null when they were not measured. Packet loss is null, or an integer from 0 to 100. An online result cannot store error details. TCP rows store null for the five ping-only fields. Existing databases add the five columns with `ALTER TABLE` and leave old values null.
+
+`check_requests`: id, device_id, check_type (`ping` or `tcp`), port, requested_at, completed_at. Hosted mode only (item 40).
 
 `status_changes`: id, device_id, previous_status, new_status, recorded_at. Written only when the new result's status differs from that device's previous result. The first result does not create a row. An incident is one of these rows whose new status is `offline` or `error`. Its recovery time is the next saved change for that device whose new status is `online`. Editing a device does not insert, change, or delete these rows.
 
@@ -205,6 +216,14 @@ From `app/config.py`:
 | `app/presentation.py` | Status labels, Toronto timestamps, statistics labels, topology layout, latency chart, status bars |
 | `app/zoneinfo/America/Toronto` | TZif data used when the system has no IANA zone |
 | `app/csrf.py` | Token creation and comparison |
+| `app/auth.py` | Admin sign-in, rate limit, `ADMIN_ENDPOINTS`, hiding private details |
+| `app/routes/agent.py` | Agent API for hosted mode |
+| `agent/agent.py` | Home agent. `agent/config.example.json` shows its config; `agent/config.json` and `agent/*.log` are git-ignored |
+| `tools/zyber_secrets.py` | Makes the agent key and the admin password hash |
+| `app/templates/auth/login.html` | Sign-in page |
+| `tests/test_agent_api.py` | Agent key, limits, row validation, pruning, hosted mode never checking, last updated |
+| `tests/test_agent.py` | Home agent: config, re-validation, redirects, end-to-end with the test client |
+| `tests/test_auth.py` | Sign-in, lockout, hidden details, queued checks, secrets helper |
 | `app/routes/devices.py` | Dashboard and device actions. It no longer serves `GET /` |
 | `app/routes/site.py` | Landing page, reports, and about. Read-only. `GITHUB_URL` is the project repository |
 | `app/routes/health.py` | Health JSON |
@@ -234,7 +253,7 @@ From `app/config.py`:
 | `tests/test_*.py` | Health, database, devices, dashboard, monitoring, presentation, site |
 | `.github/workflows/tests.yml` | GitHub Actions pytest job on windows-latest |
 
-Git ignores `.venv/`, `__pycache__/`, `.pytest_cache/`, `instance/`, `*.db`, and `.claude/` (local preview settings).
+Git ignores `.venv/`, `__pycache__/`, `.pytest_cache/`, `instance/`, `*.db`, `.claude/` (local preview settings), `agent/config.json`, and `agent/*.log`.
 
 ## Git on this PC
 
@@ -249,7 +268,7 @@ Repository state (Nov 2, 2026):
 - Branch `master`
 - `9781ea3` `Create project foundation` held the original 28 files. A second commit on Nov 2, 2026 added everything since, including the site pages, demo mode, and this handoff
 - The GitHub repository is `https://github.com/bankai9278/Zyber-NOC`, created by the user. The user adds it as `origin` and pushes `master` from their own PowerShell, because Claude's permission settings block adding a remote and pushing. Check `git remote -v` and `git status` before assuming it is pushed
-- Nothing has been deployed to a host yet
+- The read-only demo is live at `https://zybernoc.pythonanywhere.com` (PythonAnywhere, branch `master` of `bankai9278/Zyber-NOC`). Hosted live mode (items 38-40) is committed locally but not pushed or deployed; the README section "Hosted live mode with a home agent" has the steps
 
 Commit or push again only when the user asks.
 
@@ -261,7 +280,8 @@ Do not treat these as existing features:
 - Alert channels other than the local log file and SMTP email, and recovery alerts
 - A latency chart beyond the latest 20 saved checks. The 90-day bar shows status, not response time
 - TCP ports other than 22, 53, 80, 443, and 3389
-- A production server, login, or deployment setup for normal mode. Only the read-only demo has hosting notes, and nothing has been deployed
+- A production server or more than one user. Hosted mode has one admin. Plain normal mode must not be hosted
+- SNMP in hosted mode, and an agent that runs more often than its Task Scheduler entry
 
 ## How to continue with another AI
 
