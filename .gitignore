@@ -17,3 +17,8 @@ instance/
 
 # Local editor and Claude Code preview settings.
 .claude/
+
+# Home agent settings (holds the agent key) and its log.
+agent/config.json
+agent/*.log
+agent/*.log.old

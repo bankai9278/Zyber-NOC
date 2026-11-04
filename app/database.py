@@ -1190,6 +1190,15 @@ def _ensure_device_columns(connection):
         )
 
 
+def normalize_ip_address(value):
+    """Return the canonical form of an address the inventory would accept.
+
+    The home agent calls this on every address the website sends, so a
+    bad or changed website cannot make it ping something the rules refuse.
+    """
+    return _validate_ip_address(value)
+
+
 def _validate_ip_address(value):
     if not isinstance(value, str):
         raise ValidationError("IP address must be text.")

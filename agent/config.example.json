@@ -1,0 +1,5 @@
+{
+  "site_url": "https://zybernoc.pythonanywhere.com",
+  "agent_key": "paste the same long key you set as ZYBER_AGENT_KEY on the website",
+  "concurrency": 2
+}
