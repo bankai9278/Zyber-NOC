@@ -228,7 +228,10 @@
 
   /* ---- Hero network field: drifting nodes that link up near the mouse ---- */
   var canvas = document.querySelector(".hero-field");
-  var ctx = canvas && canvas.getContext ? canvas.getContext("2d") : null;
+  var conn = navigator.connection || {};
+  /* Data saver: skip the field. Few cores or little memory: start smaller. */
+  var lowEnd = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
+  var ctx = canvas && canvas.getContext && !conn.saveData ? canvas.getContext("2d") : null;
   if (ctx) {
     root.classList.add("fx-field");
     var hero = canvas.parentElement;
@@ -238,21 +241,42 @@
     var running = false;
     var inView = true;
     var LINK = 120;
+    var coarse = window.matchMedia("(pointer: coarse)").matches;
+    var cap = 70;
+    var frames = 0, slow = 0, lastFrame = 0;
     var resize = function () {
-      var ratio = Math.min(window.devicePixelRatio || 1, 2);
+      var ratio = Math.min(window.devicePixelRatio || 1, lowEnd || coarse ? 1.5 : 2);
       size.w = hero.clientWidth;
       size.h = hero.clientHeight;
       canvas.width = Math.round(size.w * ratio);
       canvas.height = Math.round(size.h * ratio);
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      var want = Math.max(18, Math.min(70, Math.round(size.w * size.h / 20000)));
+      var want = Math.max(12, Math.min(lowEnd ? 35 : 70, Math.round(size.w * size.h / (lowEnd ? 40000 : 20000))));
+      want = Math.min(want, cap);
       while (points.length < want) {
         points.push({ x: Math.random() * size.w, y: Math.random() * size.h, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25 });
       }
       points.length = want;
     };
-    var draw = function () {
-      if (!running) return;
+    /* If frames keep taking over 30 ms, draw fewer points; below 12, stop. */
+    var adapt = function (now) {
+      if (lastFrame) {
+        frames += 1;
+        if (now - lastFrame > 30) slow += 1;
+        if (frames === 60) {
+          if (slow > 30) {
+            cap = Math.floor(points.length * 0.6);
+            if (cap < 12) { running = false; root.classList.remove("fx-field"); return false; }
+            points.length = cap;
+          }
+          frames = 0; slow = 0;
+        }
+      }
+      lastFrame = now;
+      return true;
+    };
+    var draw = function (now) {
+      if (!running || !adapt(now)) return;
       ctx.clearRect(0, 0, size.w, size.h);
       for (var i = 0; i < points.length; i++) {
         var a = points[i];
@@ -280,11 +304,14 @@
     };
     var update = function () {
       var should = inView && !document.hidden;
-      if (should && !running) { running = true; requestAnimationFrame(draw); }
+      if (should && !running && root.classList.contains("fx-field")) { running = true; lastFrame = 0; requestAnimationFrame(draw); }
       if (!should) running = false;
     };
     resize();
-    window.addEventListener("resize", function () { resize(); });
+    /* Phones fire resize while the address bar slides; only redo a real change. */
+    window.addEventListener("resize", function () {
+      if (hero.clientWidth !== size.w || Math.abs(hero.clientHeight - size.h) > 80) resize();
+    });
     hero.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
       var r = hero.getBoundingClientRect();
@@ -296,6 +323,14 @@
       new IntersectionObserver(function (entries) { inView = entries[0].isIntersecting; update(); }).observe(hero);
     }
     update();
+  }
+
+  /* ---- Pause CSS loops while their section is off screen ---- */
+  if ("IntersectionObserver" in window) {
+    var pio = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) { entry.target.classList.toggle("fx-paused", !entry.isIntersecting); });
+    });
+    each(document.querySelectorAll(".hero, .cta-band, .topology-wrap, .arch-figure"), function (el) { pio.observe(el); });
   }
 
   /* ---- Cursor ring grows over links and buttons (position comes from premium.js) ---- */

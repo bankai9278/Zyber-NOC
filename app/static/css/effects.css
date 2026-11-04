@@ -28,7 +28,6 @@
 .topology-flow {
   stroke: var(--mint-2); stroke-width: 4px; stroke-linecap: round;
   stroke-dasharray: 1.5 22.5; stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 4px rgba(62, 240, 165, .9));
   animation: topo-flow 1.6s linear infinite;
   pointer-events: none;
 }
@@ -134,6 +133,16 @@ html.fx-field .hero-field { display: block; }
 .footer-sound { margin: .75rem 0 0; }
 .sound-toggle { padding: .25rem .65rem; font-size: .75rem; }
 .sound-toggle[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
+
+/* ---------- Pause loops that are off screen (effects.js toggles .fx-paused) ---------- */
+.fx-paused *, .fx-paused *::before, .fx-paused *::after { animation-play-state: paused !important; }
+
+/* ---------- Lite mode (premium.js adds .fx-lite on touch, slow or data-saver devices) ----------
+   Glows drawn with filter: drop-shadow are repainted on every animation frame,
+   which is the main cost on a phone. Lite mode keeps the motion and drops them. */
+html.fx-lite :is(.net-pulses path, .node-led, .topology-svg rect) { filter: none; }
+html.fx-lite .node-halo { animation: none; }
+html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px); }
 
 /* ---------- Phone ---------- */
 @media (max-width: 42rem) {

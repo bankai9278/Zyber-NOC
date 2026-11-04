@@ -11,6 +11,13 @@
   if (systemReduce && motionOn) root.classList.add("motion-on");
   var reduce = { matches: systemReduce && !motionOn };
   root.classList.add("fx-js");
+  /* Lite mode for phones, tablets, slow PCs and data saver: the same effects,
+     minus the costly glows (see "Lite mode" in effects.css). */
+  var conn = navigator.connection || {};
+  if (window.matchMedia("(pointer: coarse)").matches || conn.saveData ||
+      (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4) {
+    root.classList.add("fx-lite");
+  }
 
   /* ---- Footer switch: shown only when the system asks for reduced motion ---- */
   var motionToggle = document.querySelector("[data-motion-toggle]");
@@ -33,16 +40,21 @@
   window.addEventListener("pageswap", skipTransition);
   window.addEventListener("pagereveal", skipTransition);
 
-  /* ---- Scroll: progress bar + shrinking header ---- */
+  /* ---- Scroll: progress bar + shrinking header ----
+     Variables are set on the element that uses them, never on <html>: a custom
+     property on the root makes the browser restyle the whole page each frame. */
   var ticking = false;
+  var progressBar = document.querySelector(".fx-progress span");
+  var scrolled = null;
   function onScroll() {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(function () {
       var max = root.scrollHeight - window.innerHeight;
       var p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
-      root.style.setProperty("--progress", p.toFixed(4));
-      root.classList.toggle("is-scrolled", window.scrollY > 24);
+      if (progressBar) progressBar.style.setProperty("--progress", p.toFixed(4));
+      var now = window.scrollY > 24;
+      if (now !== scrolled) { scrolled = now; root.classList.toggle("is-scrolled", now); }
       ticking = false;
     });
   }
@@ -130,23 +142,28 @@
   if (reduce.matches) return;
   function isMouse(e) { return e.pointerType === "mouse" || e.pointerType === "pen"; }
 
-  /* ---- Cursor: page spotlight + card border glow ---- */
-  var glowCards = document.querySelectorAll(".glow-card, .panel, .summary li");
-  var mouse = { x: 0, y: 0 }, pending = false;
+  /* ---- Cursor: page spotlight + card border glow ----
+     The glow only shows on the hovered card, so only that card gets new
+     values. Setting them on every card restyled whole tables on each move. */
+  var glowSelector = ".glow-card, .panel, .summary li";
+  var mouse = { x: 0, y: 0 }, pending = false, hovered = null;
+  var followers = document.querySelectorAll(".fx-spotlight, .fx-cursor");
   function paint() {
     pending = false;
-    root.style.setProperty("--mx", mouse.x + "px");
-    root.style.setProperty("--my", mouse.y + "px");
-    for (var k = 0; k < glowCards.length; k++) {
-      var r = glowCards[k].getBoundingClientRect();
-      if (mouse.y < r.top - 300 || mouse.y > r.bottom + 300) continue;
-      glowCards[k].style.setProperty("--gx", (mouse.x - r.left) + "px");
-      glowCards[k].style.setProperty("--gy", (mouse.y - r.top) + "px");
+    for (var f = 0; f < followers.length; f++) {
+      followers[f].style.setProperty("--mx", mouse.x + "px");
+      followers[f].style.setProperty("--my", mouse.y + "px");
+    }
+    if (hovered) {
+      var r = hovered.getBoundingClientRect();
+      hovered.style.setProperty("--gx", (mouse.x - r.left) + "px");
+      hovered.style.setProperty("--gy", (mouse.y - r.top) + "px");
     }
   }
   window.addEventListener("pointermove", function (e) {
     if (!isMouse(e)) return;
     mouse.x = e.clientX; mouse.y = e.clientY;
+    hovered = e.target.closest ? e.target.closest(glowSelector) : null;
     root.classList.add("fx-pointer");
     if (!pending) { pending = true; requestAnimationFrame(paint); }
   }, { passive: true });

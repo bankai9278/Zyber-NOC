@@ -178,3 +178,28 @@ def test_every_reduced_motion_rule_yields_to_the_motion_switch():
             body = css[match.end():i - 1]
             for rule in re.findall(r"([^{}]+)\{[^{}]*\}", body):
                 assert "html" in rule and ":not(.motion-on)" in rule, (name, rule.strip())
+
+
+def test_scripts_never_set_custom_properties_on_the_root():
+    # A custom property on <html> makes the browser restyle the whole page.
+    # Scroll and mouse values go on the element that uses them instead.
+    for name in ("premium.js", "effects.js"):
+        script = (STATIC / "js" / name).read_text(encoding="utf-8")
+        assert "root.style.setProperty" not in script, name
+        assert "documentElement.style" not in script, name
+
+
+def test_lite_mode_and_off_screen_pausing():
+    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
+    assert 'root.classList.add("fx-lite");' in premium
+    assert '(pointer: coarse)' in premium and "saveData" in premium
+    css = _css()
+    assert "html.fx-lite :is(.net-pulses path, .node-led, .topology-svg rect) { filter: none; }" in css
+    assert ".fx-paused *, .fx-paused *::before, .fx-paused *::after { animation-play-state: paused !important; }" in css
+    assert 'classList.toggle("fx-paused", !entry.isIntersecting)' in _js()
+
+
+def test_hero_field_adapts_to_slow_devices():
+    script = _js()
+    assert "!conn.saveData" in script
+    assert "if (cap < 12) { running = false;" in script
