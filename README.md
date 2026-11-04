@@ -2,9 +2,9 @@
 
 [![Tests](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml/badge.svg)](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml)
 
-**Live site: [zybernoc.pythonanywhere.com](https://zybernoc.pythonanywhere.com)** shows live device status sent by a small agent on my home PC. It is read-only for the public (addresses and descriptions hidden), with an admin sign-in for changes.
+**Live site: [zybernoc.pythonanywhere.com](https://zybernoc.pythonanywhere.com)** shows the real status of devices on my home network, sent in by a small agent on my PC. Anyone can look; only I can sign in and make changes, and IP addresses and descriptions stay hidden from the public. Want to click around? The **Try it** page has a sandbox with pretend devices.
 
-A small network operations console that pings the devices you save, keeps every result in SQLite, and turns them into uptime, incidents, a 90-day status bar, and a topology map. Built with Python, Flask, and plain HTML, CSS, and JavaScript by Yash Oza as a junior network technician and IT support portfolio project.
+Zyber NOC is a small network operations console. You save the devices you're allowed to monitor, it pings them, keeps every result in SQLite, and turns those results into uptime, incidents, a 90-day status bar, and a topology map. I built it with Python, Flask, and plain HTML, CSS, and JavaScript as a portfolio project for junior network technician and IT support roles.
 
 | Dashboard | Device page |
 |---|---|
@@ -12,56 +12,63 @@ A small network operations console that pings the devices you save, keeps every 
 | **Topology** | **Home** |
 | ![Topology map drawn from saved parent links](docs/screenshots/topology.png) | ![Landing page](docs/screenshots/home.png) |
 
-The screenshots were taken from the app running in read-only demo mode, so every device and number in them is sample data on documentation addresses.
+I took these screenshots from the app in demo mode, so every device and number in them is sample data on documentation addresses.
 
 ## About this project
 
-Zyber NOC is a local Windows prototype for a junior network technician or IT support portfolio. It keeps an inventory of devices you choose to monitor, checks those devices with Windows ping, stores each result, and shows the latest status on a dashboard.
+I wanted something closer to real NOC work than a course lab: keep a list of devices, check them, record what happened, and make outages easy to spot. It started as a Windows app on my own PC and still runs that way by default. It only checks addresses I've saved. It doesn't discover devices or scan a subnet, and it isn't meant to run a production network.
 
-This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in hosted mode: the website never pings anything itself; it shows results that a small agent on the home PC checks and sends (see [Hosted live mode](#hosted-live-mode-with-a-home-agent-optional)). Visitors can only read. A read-only demo mode with sample data is also built (see [Read-only demo](#read-only-demo-for-hosting)).
+The public site runs the same code in **hosted mode**. The website itself never pings anything. An agent on my home PC checks the devices every 5 minutes and posts the results (see [Hosted live mode](#hosted-live-mode-with-a-home-agent-optional)). There's also a **read-only demo mode** with sample data (see [Read-only demo](#read-only-demo-for-hosting)).
 
 ## Features
 
-- Add a device with a name, IPv4 or IPv6 address, device type, optional description, and an optional parent device.
-- Reject a missing field, an invalid address, a duplicate address, and a broadcast, multicast, or unspecified address.
-- Show every saved device on one dashboard, with counts for total, online, offline, unknown, and error.
-- Leave a device **Unknown** until a check result has been saved. The dashboard does not invent a status.
-- **Check now** pings one saved device. **Check all** pings up to 20 saved devices, two at a time.
-- Store every finished check in SQLite, including an error when a check cannot be completed.
-- Show the latest response time and check time from the newest saved result.
-- Open a device page with up to 20 of the most recent checks. Older rows stay in the database.
-- Delete a device only after a confirmation page. That device and its monitoring history are removed. Devices that listed it as a parent stay in the inventory, with no parent.
-- Refresh the dashboard from the results already stored, without starting another ping.
-- Provide a JSON health check at `/health`.
-- Show optional location and VLAN on each device, and filter the dashboard table by either value. Summary counts still include every saved device.
-- Group the device table by location or VLAN. Devices with no value are listed under Unassigned.
-- Show uptime and average response time from saved results. Both stay Unknown until a result exists.
-- Record a status change when a new result's status differs from the previous saved result, and list the 10 most recent changes.
-- List the 10 most recent incidents from those saved changes. An incident is a change to offline or error. The duration runs until the next saved change back to online, or says ongoing when that change has not been saved.
-- Edit a saved device, including its parent. The monitoring history stays with the device when its IP address or other fields change. A device cannot be its own parent, and a parent link that would make a loop is rejected.
-- When a device and its parent are both offline in their latest saved checks, the badge says Unreachable via the parent name. The stored status remains offline.
-- Mark a child incident as caused by a parent outage when the parent was already offline at that time.
-- Open a Topology page that draws the parent and child tree as inline SVG. Each device links to its own page. **Show 3D globe** draws the same saved devices on a globe you can turn (Three.js, loaded only when pressed).
-- Check TCP ports 22, 53, 80, 443, and 3389 on a saved device. No other port is opened.
-- **Poll SNMP** on a device page reads each interface's name, up or down status, and traffic counters over SNMP v2c (read-only, standard library only). Two saved polls turn the counters into traffic in and out. A poll never changes the device's ping status, uptime, or incidents.
-- Draw a response-time chart on the device page from the last 20 saved checks, using inline SVG. The line is the median, with a band from the saved minimum to maximum. Point colour follows that check's packet loss.
-- Show jitter and packet loss from the latest saved ping. Both stay Unknown until a result exists, and Not measured when that result did not store the value.
-- Show a 90-day status bar on the device page and a 30-day bar on each dashboard row. Colour comes from the worst saved status that day. Days with no checks stay grey. The 90-day uptime uses only checks in that window.
-- Download one device's history as CSV. The file keeps the stored UTC timestamps.
-- Show timestamps in America/Toronto local time. The database still stores UTC.
-- Optional hosted live mode: the website never pings; a home agent (`agent/agent.py`) checks the saved devices every 5 minutes and posts the results with a shared key. One admin sign-in; signed-out visitors see names and statuses but not addresses or descriptions. The dashboard shows when the last result arrived.
-- A **Try it** sandbox at `/try`: visitors can add, edit, delete, and pretend-check up to 8 made-up devices. They live only in that visitor's session cookie, never in the database, reset after an hour, and are never pinged or contacted. Statuses there are drawn at random and labelled as made up.
-- Installs as an app on Android (and other browsers that support it): a web app manifest at `/manifest.webmanifest`, icons drawn by `tools/make_icons.py` with the standard library, and a service worker at `/service-worker.js`. The worker stores only files under `/static/` and an offline page. Pages, `/api/` JSON, sign-in, and CSV downloads always come from the network and are never stored, so a phone never shows an old status as live. On Android Chrome, open the site and choose **Add to Home screen** or **Install app**.
-- Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
-- Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
-- Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
-- Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` and `effects.js` stays off when the system asks for reduced motion, unless the visitor turns it on with the footer switch. On desktop with full motion, the home page adds GSAP scroll scenes.
-- The about page at `/about` is written in first person by Yash Oza. It covers why the project exists, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a self-drawn SVG of that core, distribution, and access hierarchy, a skills list, and what is planned next. Planned items, such as SNMP polling, alerting, and certifications, are described as goals, not as finished work.
-- The `YO` initials logo is `app/static/img/logo-yo.svg`, a hand-written SVG. It is the favicon, appears next to ZYBER NOC in the header, in the footer as Built by Yash Oza, and larger on the about page.
+**Inventory**
+
+- Save a device with a name, an IPv4 or IPv6 address, a type, and optionally a description, location, VLAN, and parent device.
+- Bad input is refused: missing fields, invalid or duplicate addresses, and broadcast, multicast, or unspecified addresses.
+- Edit a device at any time, including its parent. Its history stays with it, even after an IP change. A device can't be its own parent, and a parent link that would make a loop is refused.
+- Delete only after a confirmation page. The device and its history go; any children stay, with no parent.
+
+**Checks**
+
+- **Check now** pings one device (five echo requests). **Check all** pings up to 20, two at a time.
+- **Check port** tries TCP 22, 53, 80, 443, or 3389 on a saved device. No other port is ever opened.
+- **Poll SNMP** reads each interface's name, up/down status, and traffic counters over SNMP v2c. It's read-only and uses only the standard library. Two polls turn the counters into traffic rates. A poll never changes ping status, uptime, or incidents.
+- Every finished check is saved, including errors. A device stays **Unknown** until a check is saved; the app never invents a status.
+- Scheduled checks are off by default. When turned on in config, a background thread runs Check all every so many minutes (1 at the least).
+
+**Dashboard and history**
+
+- Counts for total, online, offline, unknown, and error, plus the latest response time and check time for each device.
+- Filter the table by location or VLAN, or group it by either. Summary counts always cover every device.
+- Uptime and average response time from saved results only.
+- The 10 most recent status changes, and the 10 most recent incidents (changes to offline or error), with how long each lasted or `ongoing`.
+- When a device and its parent are both offline, the badge says **Unreachable via** the parent. A child's incident is marked as caused by the parent outage when the parent was already down.
+- Device page: the last 20 checks, a response-time chart (median line, min-to-max band, points coloured by packet loss), jitter and packet loss from the latest ping, and a 90-day status bar. Each dashboard row has a 30-day bar.
+- **Refresh status** reloads saved results without pinging again. **Download CSV** exports a device's full history in UTC.
+- Times show in America/Toronto; the database stores UTC. `/health` returns a small JSON health check.
+
+**Topology**
+
+- `/topology` draws the parent and child tree as inline SVG, with each device linking to its page. **Show 3D globe** draws the same devices on a globe you can turn (Three.js, loaded only when you press it).
+
+**Hosting, sign-in, and phone**
+
+- Hosted live mode: the website never pings. A home agent (`agent/agent.py`) checks the saved devices every 5 minutes and posts the results with a shared key. One admin sign-in. Signed-out visitors see names and statuses but not addresses or descriptions. The dashboard shows when the last result arrived.
+- A **Try it** sandbox at `/try`: visitors can add, edit, delete, and pretend-check up to 8 made-up devices. They live only in that visitor's session cookie, never in the database, reset after an hour, and are never pinged or contacted. Their history is random and labelled as made up.
+- Installs as an app on Android. A web app manifest is at `/manifest.webmanifest`, the icons are drawn by `tools/make_icons.py` with the standard library, and a service worker is at `/service-worker.js`. The worker stores only files under `/static/` and an offline page. Pages, `/api/` JSON, sign-in, and CSV downloads always come from the network, so a phone never shows an old status as live. In Chrome on Android, open the site and choose **Add to Home screen** or **Install app**.
+- Optional outage alerts, off by default. When on, a check that changes a device to offline or error is written to `instance/alerts.log` and can also be emailed through your own mail server. Demo mode never alerts.
+
+**Look and feel**
+
+- A Cyber terminal theme (`app/static/css/theme-terminal.css`, loaded after `style.css`), using system fonts and Cascadia Mono only.
+- A home page at `/` with saved totals, a 30-day report at `/reports`, and an about page at `/about`. Numbers on those pages come only from saved rows. The animations in `premium.js` and `effects.js` stay off when the system asks for reduced motion, unless the visitor turns them on with the footer switch. On desktop with full motion, the home page adds GSAP scroll scenes.
+- The about page is my own write-up: why I built this, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a diagram of that core, distribution, and access design, my skills, and what I plan next. Planned items, such as certifications, are listed as goals, not as done.
+- My `YO` initials logo (`app/static/img/logo-yo.svg`) is the favicon, sits next to ZYBER NOC in the header and footer, and appears larger on the about page.
 
 ## Networking concepts
 
-The project practices a few ideas used in network support:
+These are the network support ideas I practised while building it:
 
 - **Authorized inventory.** A technician monitors devices they are allowed to check. The app pings only addresses that were added to the inventory. It does not scan an IP range or accept a hostname.
 - **ICMP echo.** **Check now** uses Windows `ping`, which sends five ICMP echo requests and waits for echo replies. A reply makes the device **Online**. No reply before the timeout makes it **Offline**.
@@ -74,7 +81,7 @@ The project practices a few ideas used in network support:
 
 ## Architecture
 
-The browser talks only to Flask. Flask validates each form, then asks the database or the Windows ping checker to do the work. Pages are rendered on the server. A small script can reload the dashboard from saved results.
+The browser only ever talks to Flask. Flask checks each form, then hands the work to the database or the Windows ping checker. Pages are rendered on the server, and a small script reloads the dashboard from saved results.
 
 ```mermaid
 flowchart TD
@@ -123,7 +130,7 @@ The main tables are these (SNMP polls and interfaces have their own two tables):
 
 ## Technologies
 
-| Technology | Why it is used |
+| Technology | Why I used it |
 |---|---|
 | Python 3.11 or newer | The application, database access, IP validation, ping command, and TCP connection are all Python. SQLite, subprocess, sockets, and time zones come with Python. |
 | Flask 3.1.3 | Serves the local pages and forms without a separate frontend application. |
