@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml/badge.svg)](https://github.com/bankai9278/Zyber-NOC/actions/workflows/tests.yml)
 
-**Live demo: [zybernoc.pythonanywhere.com](https://zybernoc.pythonanywhere.com)** (read-only, sample data)
+**Live site: [zybernoc.pythonanywhere.com](https://zybernoc.pythonanywhere.com)** shows live device status sent by a small agent on my home PC. It is read-only for the public (addresses and descriptions hidden), with an admin sign-in for changes.
 
 A small network operations console that pings the devices you save, keeps every result in SQLite, and turns them into uptime, incidents, a 90-day status bar, and a topology map. Built with Python, Flask, and plain HTML, CSS, and JavaScript by Yash Oza as a junior network technician and IT support portfolio project.
 
@@ -18,7 +18,7 @@ The screenshots were taken from the app running in read-only demo mode, so every
 
 Zyber NOC is a local Windows prototype for a junior network technician or IT support portfolio. It keeps an inventory of devices you choose to monitor, checks those devices with Windows ping, stores each result, and shows the latest status on a dashboard.
 
-This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in read-only demo mode: it never pings anything and cannot be changed. A hosted live mode is also built: the website shows real results that a small agent on the home PC checks and sends (see [Hosted live mode](#hosted-live-mode-with-a-home-agent-optional)).
+This is a learning project. It runs on your own computer and does not discover devices, scan a subnet, or manage a production network. The public link above runs the same code in hosted mode: the website never pings anything itself; it shows results that a small agent on the home PC checks and sends (see [Hosted live mode](#hosted-live-mode-with-a-home-agent-optional)). Visitors can only read. A read-only demo mode with sample data is also built (see [Read-only demo](#read-only-demo-for-hosting)).
 
 ## Features
 
