@@ -41,7 +41,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Edit a saved device, including its parent. The monitoring history stays with the device when its IP address or other fields change. A device cannot be its own parent, and a parent link that would make a loop is rejected.
 - When a device and its parent are both offline in their latest saved checks, the badge says Unreachable via the parent name. The stored status remains offline.
 - Mark a child incident as caused by a parent outage when the parent was already offline at that time.
-- Open a Topology page that draws the parent and child tree as inline SVG. Each device links to its own page.
+- Open a Topology page that draws the parent and child tree as inline SVG. Each device links to its own page. **Show 3D globe** draws the same saved devices on a globe you can turn (Three.js, loaded only when pressed).
 - Check TCP ports 22, 53, 80, 443, and 3389 on a saved device. No other port is opened.
 - **Poll SNMP** on a device page reads each interface's name, up or down status, and traffic counters over SNMP v2c (read-only, standard library only). Two saved polls turn the counters into traffic in and out. A poll never changes the device's ping status, uptime, or incidents.
 - Draw a response-time chart on the device page from the last 20 saved checks, using inline SVG. The line is the median, with a band from the saved minimum to maximum. Point colour follows that check's packet loss.
@@ -52,7 +52,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
 - Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
 - Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
-- Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` and `effects.js` stays off when the system asks for reduced motion.
+- Open a home page at `/` with saved totals, a reports page at `/reports`, and an about page at `/about`. Counts on those pages come only from saved rows. Motion in `premium.js` and `effects.js` stays off when the system asks for reduced motion, unless the visitor turns it on with the footer switch. On desktop with full motion, the home page adds GSAP scroll scenes.
 - The about page at `/about` is written in first person by Yash Oza. It covers why the project exists, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a self-drawn SVG of that core, distribution, and access hierarchy, a skills list, and what is planned next. Planned items, such as SNMP polling, alerting, and certifications, are described as goals, not as finished work.
 - The `YO` initials logo is `app/static/img/logo-yo.svg`, a hand-written SVG. It is the favicon, appears next to ZYBER NOC in the header, in the footer as Built by Yash Oza, and larger on the about page.
 
@@ -119,7 +119,7 @@ The database has three tables:
 | Python 3.11 or newer | The application, database access, IP validation, ping command, and TCP connection are all Python. SQLite, subprocess, sockets, and time zones come with Python. |
 | Flask 3.1.3 | Serves the local pages and forms without a separate frontend application. |
 | SQLite | Stores the inventory and check history in one file on this PC. No database server is required. |
-| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `premium.css` is the home, reports, and about layout. `effects.css` loads last and holds the page transitions, texture, topology animation, boot intro and scroll story. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. |
+| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `premium.css` is the home, reports, and about layout. `effects.css` loads last and holds the page transitions, texture, topology animation, boot intro and scroll story. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. Three.js and GSAP are vendored in `app/static/vendor/` and load only on the pages that use them. |
 | pytest 9.1.1 | Runs automated tests. Ping tests use stand-in command output, and TCP tests use a stand-in socket, so the test run does not send real network traffic. |
 
 Flask also installs its required libraries, including Werkzeug and Jinja2. Those are not listed separately in `requirements.txt`.

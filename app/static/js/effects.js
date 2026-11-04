@@ -126,6 +126,31 @@
     topo.addEventListener("focusout", clearPath);
   }
 
+  /* ---- 3D globe on the topology page: Three.js loads only when asked ---- */
+  var globePanel = document.querySelector("[data-globe-src]");
+  var hasWebGL = false;
+  try { hasWebGL = !!document.createElement("canvas").getContext("webgl2"); } catch (err) { hasWebGL = false; }
+  if (globePanel && topo && hasWebGL) {
+    globePanel.hidden = false;
+    var globeButton = globePanel.querySelector("[data-globe-toggle]");
+    var stage = globePanel.querySelector("[data-globe-stage]");
+    var globe = null;
+    globeButton.addEventListener("click", function () {
+      var open = stage.hidden;
+      stage.hidden = !open;
+      globeButton.setAttribute("aria-expanded", open ? "true" : "false");
+      globeButton.textContent = open ? "Hide 3D globe" : "Show 3D globe";
+      if (!open || globe) return;
+      globeButton.disabled = true;
+      import(globePanel.getAttribute("data-globe-src")).then(function (mod) {
+        globe = mod.mountGlobe(stage, topo, { reduce: reduce, lite: root.classList.contains("fx-lite") });
+        if (!globe) stage.textContent = "This browser could not start 3D graphics. The 2D map below shows the same devices.";
+      }).catch(function () {
+        stage.textContent = "The 3D globe could not load. The 2D map below shows the same devices.";
+      }).then(function () { globeButton.disabled = false; });
+    });
+  }
+
   /* ---- Optional interface sounds: off by default, remembered per browser ---- */
   var toggle = document.querySelector("[data-sound-toggle]");
   var soundOn = false;
@@ -323,6 +348,40 @@
       new IntersectionObserver(function (entries) { inView = entries[0].isIntersecting; update(); }).observe(hero);
     }
     update();
+  }
+
+  /* ---- GSAP scroll scenes on the home page (desktop, full motion only) ----
+     gsap.min.js and ScrollTrigger.min.js are vendored in static/vendor and
+     are fetched only here, so other pages and phones never download them. */
+  var vendor = (document.currentScript || document.querySelector('script[src*="js/effects.js"]')).src.replace(/js\/effects\.js.*$/, "vendor/");
+  function loadScript(src) {
+    return new Promise(function (resolve, reject) {
+      var tag = document.createElement("script");
+      tag.src = src;
+      tag.onload = resolve;
+      tag.onerror = reject;
+      document.body.appendChild(tag);
+    });
+  }
+  if (document.body.classList.contains("page-home") && !root.classList.contains("fx-lite")) {
+    loadScript(vendor + "gsap.min.js").then(function () {
+      return loadScript(vendor + "ScrollTrigger.min.js");
+    }).then(function () {
+      var gsap = window.gsap;
+      gsap.registerPlugin(window.ScrollTrigger);
+      root.classList.add("fx-gsap");
+      var hero = document.querySelector(".hero");
+      gsap.to(".hero-grid", { yPercent: -12, opacity: 0.35, ease: "none", scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true } });
+      gsap.to(".hero-field", { yPercent: 18, ease: "none", scrollTrigger: { trigger: hero, start: "top top", end: "bottom top", scrub: true } });
+      document.querySelectorAll(".feature-figure img").forEach(function (img) {
+        gsap.fromTo(img, { scale: 1.12 }, { scale: 1, ease: "none", scrollTrigger: { trigger: img.parentElement, start: "top bottom", end: "center center", scrub: true } });
+      });
+      document.querySelectorAll(".feature-copy h3").forEach(function (title) {
+        gsap.fromTo(title, { xPercent: -6, letterSpacing: "0.08em" }, { xPercent: 0, letterSpacing: "-0.02em", ease: "none", scrollTrigger: { trigger: title, start: "top bottom", end: "top 55%", scrub: true } });
+      });
+      gsap.fromTo(".cta-inner", { scale: 0.92 }, { scale: 1, ease: "none", scrollTrigger: { trigger: ".cta-band", start: "top bottom", end: "center center", scrub: true } });
+      gsap.to(".stack-grid", { yPercent: -4, ease: "none", scrollTrigger: { trigger: ".stack", start: "top bottom", end: "bottom top", scrub: true } });
+    }).catch(function () { /* Without GSAP the page keeps its CSS reveals. */ });
   }
 
   /* ---- Pause CSS loops while their section is off screen ---- */

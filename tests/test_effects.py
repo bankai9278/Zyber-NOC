@@ -203,3 +203,38 @@ def test_hero_field_adapts_to_slow_devices():
     script = _js()
     assert "!conn.saveData" in script
     assert "if (cap < 12) { running = false;" in script
+
+
+@pytest.mark.parametrize("name", ["three.module.min.js", "gsap.min.js", "ScrollTrigger.min.js", "three.LICENSE", "README.md"])
+def test_vendored_libraries_are_served_from_this_site(demo_client, name):
+    response = demo_client.get(f"/static/vendor/{name}")
+    assert response.status_code == 200
+    response.close()
+
+
+def test_libraries_are_never_in_page_markup(demo_client):
+    # Three.js and GSAP load on demand from effects.js, never from a <script> tag
+    # in the page, so pages that do not use them never download them.
+    for path in PAGES:
+        html = demo_client.get(path).get_data(as_text=True)
+        assert "three.module" not in html and "gsap" not in html.lower()
+        assert "cdn." not in html
+
+
+def test_globe_panel_is_hidden_until_script_finds_webgl(demo_client):
+    html = demo_client.get("/topology").get_data(as_text=True)
+    assert 'class="panel globe-panel" aria-label="3D globe" data-globe-src="/static/js/globe.js" hidden>' in html
+    assert "data-globe-stage hidden" in html
+    script = _js()
+    assert 'import(globePanel.getAttribute("data-globe-src"))' in script
+    globe = (STATIC / "js" / "globe.js").read_text(encoding="utf-8")
+    assert 'from "../vendor/three.module.min.js"' in globe
+    assert "innerHTML" not in globe
+    assert "var spin = reduce ? 0 :" in globe
+
+
+def test_gsap_runs_only_on_the_home_page_with_full_motion():
+    script = _js()
+    gsap_block = script[script.index("GSAP scroll scenes"):]
+    assert script.index("if (reduce) return;") < script.index("GSAP scroll scenes")
+    assert 'document.body.classList.contains("page-home") && !root.classList.contains("fx-lite")' in gsap_block

@@ -134,6 +134,22 @@ html.fx-field .hero-field { display: block; }
 .sound-toggle { padding: .25rem .65rem; font-size: .75rem; }
 .sound-toggle[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
 
+/* ---------- 3D globe (topology page, globe.js) ---------- */
+.globe-panel[hidden], .globe-stage[hidden] { display: none; }
+.globe-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.globe-note { margin: 0; color: var(--muted); font-size: .85rem; max-width: 46rem; }
+.globe-stage { position: relative; margin-top: 1rem; border-radius: var(--radius); background: radial-gradient(60% 70% at 50% 45%, rgba(62, 240, 165, .08), transparent 70%), var(--inset); overflow: hidden; }
+.globe-canvas { display: block; width: 100%; cursor: grab; touch-action: pan-y; }
+.globe-canvas:active { cursor: grabbing; }
+.globe-canvas.is-hot { cursor: pointer; }
+.globe-tip { position: absolute; left: 0; top: 0; margin: 0; padding: .25rem .5rem; pointer-events: none; font-size: .75rem; color: var(--heading); background: var(--panel); border: 1px solid var(--button-border-hover); border-radius: var(--radius); white-space: nowrap; }
+.globe-tip[hidden] { display: none; }
+
+/* GSAP drives these on the home page; their CSS reveal must not fight it. */
+html.fx-gsap .hero-grid, html.fx-gsap .cta-inner, html.fx-gsap .stack-grid { will-change: transform; }
+html.fx-gsap .cta-inner[data-reveal] { transition-property: opacity, filter; }
+html.fx-gsap .feature-figure { overflow: hidden; }
+
 /* ---------- Pause loops that are off screen (effects.js toggles .fx-paused) ---------- */
 .fx-paused *, .fx-paused *::before, .fx-paused *::after { animation-play-state: paused !important; }
 
