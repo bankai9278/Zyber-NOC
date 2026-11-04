@@ -115,11 +115,13 @@ def test_boot_intro_uses_saved_totals_in_normal_mode(client):
     assert "serving on 127.0.0.1 only" in html
 
 
-def test_scroll_story_wraps_the_four_steps(demo_client):
+def test_scroll_story_follows_one_ping_in_six_steps(demo_client):
     html = demo_client.get("/").get_data(as_text=True)
     assert "data-story" in html
-    assert html.count('class="how-card glow-card story-step"') == 4
-    assert html.count('class="story-dot"') == 4
+    assert html.count('class="how-card glow-card story-step') == 6
+    assert html.count('class="story-dot"') == 6
+    phases = re.findall(r'data-phase="([a-z]+)"', html)
+    assert phases == ["request", "router", "reply", "timeout", "store", "live"]
 
 
 def test_sound_toggle_is_hidden_and_off_by_default(demo_client):

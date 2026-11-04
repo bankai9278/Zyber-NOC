@@ -644,3 +644,25 @@ html.is-scrolled .page-home .header-inner {
 }
 .site-header .nav-button:hover { color: var(--heading); background: var(--hover); }
 .login-form { max-width: 24rem; }
+
+/* ---------- Display font for headings ----------
+   Space Grotesk (SIL OFL 1.1), served from static/fonts. Headings only;
+   body text, labels, and numbers keep the system and mono fonts. */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("../fonts/space-grotesk-wght.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+:root { --font-display: "Space Grotesk", "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; }
+h1, h3, .hero-title, .page-hero-title, .section-title-lg, .cta-inner h2, .how-card h3, .stack-card h3 { font-family: var(--font-display); }
+h1 { font-weight: 700; letter-spacing: -.035em; }
+.hero-title, .page-hero-title { font-weight: 700; letter-spacing: -.045em; }
+.section-title-lg, .cta-inner h2 { font-weight: 700; letter-spacing: -.03em; }
+.how-card h3, .stack-card h3 { font-weight: 600; letter-spacing: -.01em; font-size: 1.12rem; }
+h1::before { font-family: var(--font-mono); font-weight: 600; }
+@media (min-width: 42.01rem) {
+  h1 { font-size: 1.9rem; }
+  .section-title-lg { font-size: clamp(1.8rem, 2.9vw, 2.7rem); }
+}

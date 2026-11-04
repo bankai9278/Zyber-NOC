@@ -61,7 +61,8 @@ The public site runs the same code in **hosted mode**. The website itself never 
 
 **Look and feel**
 
-- A Cyber terminal theme (`app/static/css/theme-terminal.css`, loaded after `style.css`), using system fonts and Cascadia Mono only.
+- A Cyber terminal theme (`app/static/css/theme-terminal.css`, loaded after `style.css`). Headings use Space Grotesk, served from `app/static/fonts/` (never a font CDN); body text and labels use system fonts and Cascadia Mono.
+- **Follow a ping** on the home page: as you scroll, a packet travels from this PC through the router to a device and back, while six short steps explain the echo request, TTL, the echo reply, latency, median and jitter, timeouts and packet loss, and how the result is saved. The last step shows the newest saved check (name, status, response time, and how long ago; never an address), or says plainly that nothing has been checked yet. Without motion it stays a readable list.
 - A home page at `/` with saved totals, a 30-day report at `/reports`, and an about page at `/about`. Numbers on those pages come only from saved rows. The animations in `premium.js` and `effects.js` stay off when the system asks for reduced motion, unless the visitor turns them on with the footer switch. On desktop with full motion, the home page adds GSAP scroll scenes.
 - The about page is my own write-up: why I built this, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a diagram of that core, distribution, and access design, my skills, and what I plan next. Planned items, such as certifications, are listed as goals, not as done.
 - My `YO` initials logo (`app/static/img/logo-yo.svg`) is the favicon, sits next to ZYBER NOC in the header and footer, and appears larger on the about page.
@@ -478,6 +479,11 @@ What the agent does not trust: it validates every address from the website again
 ## Screenshots
 
 The images at the top of this file are in `docs/screenshots/`. They were captured from the app in demo mode. The home page shows three static images of the dashboard, a device page, and the topology map. They are saved files in `app/static/img/` and are not a live reading of the database. The GitHub link in the footer opens the project repository.
+
+## Credits
+
+- [Space Grotesk](https://github.com/floriankarsten/space-grotesk) by Florian Karsten, SIL Open Font License 1.1. The variable `woff2` file and its license are in `app/static/fonts/`.
+- [Three.js](https://threejs.org) (MIT) and [GSAP](https://gsap.com) (standard no-charge license), vendored in `app/static/vendor/` with their licenses.
 
 ## Current limitations
 

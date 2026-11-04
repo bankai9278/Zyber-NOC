@@ -4,7 +4,7 @@ Every number on these pages is read from saved rows in the database.
 Nothing here runs a check or writes to the database.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import Blueprint, abort, current_app, render_template, send_from_directory
@@ -43,7 +43,7 @@ def inject_site_links():
 def home():
     """Landing page with stats built from saved results only."""
     data = _collect()
-    return render_template("site/home.html", **data)
+    return render_template("site/home.html", latest_ping=latest_ping(data["devices"]), **data)
 
 
 @bp.get("/reports")
@@ -96,6 +96,41 @@ def _collect(with_history_bars=False):
         "first_ip": devices[0]["ip_address"] if devices else None,
         "report_days": REPORT_DAYS,
     }
+
+
+def latest_ping(devices, now=None):
+    """The most recently checked device, for the last step of the home page story.
+
+    Uses only what signed-out visitors can already see: the name, status,
+    response time, and when it was checked. Returns None when nothing has
+    been checked yet.
+    """
+    checked = [device for device in devices if device.get("recorded_at") and device.get("status") in ("online", "offline", "error")]
+    if not checked:
+        return None
+    device = max(checked, key=lambda item: item["recorded_at"])
+    moment = _parse(device["recorded_at"])
+    if moment is None:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    seconds = max(0, int(((now or datetime.now(timezone.utc)) - moment).total_seconds()))
+    return {
+        "name": device["name"],
+        "status": device["status"],
+        "response_time_ms": device.get("response_time_ms"),
+        "ago_label": _ago_label(seconds),
+    }
+
+
+def _ago_label(seconds):
+    if seconds < 60:
+        return "less than a minute ago"
+    for size, unit in ((86400, "day"), (3600, "hour"), (60, "minute")):
+        if seconds >= size:
+            count = seconds // size
+            return f"{count} {unit}{'' if count == 1 else 's'} ago"
+    return "just now"
 
 
 def _device_report(results, incidents):

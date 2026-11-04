@@ -7,7 +7,7 @@
  * go to the network and are never stored, so a phone never shows an old
  * status as live and never keeps a signed-in page.
  */
-var CACHE = "zyber-static-v1";
+var CACHE = "zyber-static-v2";
 var PRECACHE = [
   "/static/offline.html",
   "/static/css/style.css",
@@ -23,6 +23,7 @@ var PRECACHE = [
   "/static/img/grain.svg",
   "/static/img/icon-192.png",
   "/static/img/icon-512.png",
+  "/static/fonts/space-grotesk-wght.woff2",
 ];
 
 self.addEventListener("install", function (event) {
@@ -76,21 +77,17 @@ self.addEventListener("fetch", function (event) {
   if (!isStaticAsset(url)) {
     return;
   }
-  // Static files: answer from the cache, and refresh the copy in the background.
+  // Static files: always try the network first, so an update shows straight
+  // away, and keep a copy for when the phone is offline.
   event.respondWith(
     caches.open(CACHE).then(function (cache) {
-      return cache.match(request).then(function (cached) {
-        var refresh = fetch(request).then(function (response) {
-          if (response.ok) {
-            cache.put(request, response.clone());
-          }
-          return response;
-        });
-        if (cached) {
-          refresh.catch(function () {});
-          return cached;
+      return fetch(request).then(function (response) {
+        if (response.ok) {
+          cache.put(request, response.clone());
         }
-        return refresh;
+        return response;
+      }).catch(function () {
+        return cache.match(request);
       });
     })
   );

@@ -105,6 +105,23 @@ html:not(.fx-story) .story-packet { display: none; }
 html.fx-story .story-step { transition: border-color .4s var(--ease), opacity .8s var(--ease), transform .8s var(--ease), filter .8s var(--ease); }
 html.fx-story .story-step.is-active { border-color: rgba(62, 240, 165, .4); }
 
+/* The ping path figure stays in view while the steps scroll past. */
+.ping-path {
+  position: sticky; top: 4.5rem; z-index: 3; margin: 0 0 2.5rem 4rem; max-width: 46rem;
+  padding: .6rem .9rem; border: 1px solid var(--border); border-radius: 10px;
+  background: rgba(7, 9, 10, .9);
+}
+.ping-path svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ping-wire { stroke: var(--button-border); stroke-width: 2; stroke-dasharray: 4 6; }
+.ping-node rect { fill: var(--panel); stroke: rgba(62, 240, 165, .45); stroke-width: 1.5; }
+.ping-node text, .ping-readout { fill: var(--heading); font-family: var(--font-mono); font-size: 15px; text-anchor: middle; }
+.ping-readout { fill: var(--mint); font-size: 14px; }
+.ping-packet { fill: var(--mint); transition: fill .3s var(--ease), opacity .3s var(--ease); }
+.ping-packet.is-reply { fill: var(--cyan); }
+.ping-path.is-lost .ping-packet { opacity: .2; }
+.story-live-result { margin-bottom: .6rem !important; color: var(--heading) !important; font-size: 1rem !important; }
+.story-live-result .status { margin-right: .35rem; }
+
 /* ---------- Hero network field (canvas, drawn by effects.js) ---------- */
 .hero-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; opacity: .7; }
 html.fx-field .hero-field { display: block; }
@@ -163,6 +180,11 @@ html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba
 /* ---------- Phone ---------- */
 @media (max-width: 42rem) {
   .story-steps.how-grid { padding-left: 2.6rem; gap: 1.25rem; }
+  .ping-path { top: .5rem; margin-left: 2.6rem; padding: .4rem .5rem; }
+  /* The drawing shrinks to the phone width, so its text is drawn larger to stay readable. */
+  .ping-node text { font-size: 24px; }
+  .ping-readout { font-size: 23px; }
+  .ping-packet { r: 10px; }
   .story-rail { left: .9rem; }
   .story-step > .story-dot { left: -2.05rem; }
   .story-lede { margin-top: -.75rem; margin-bottom: 1.5rem; }

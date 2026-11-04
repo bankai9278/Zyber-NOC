@@ -108,35 +108,73 @@
 
 <section class="how" aria-labelledby="how-title">
   <div class="wrap">
-    <p class="section-kicker" data-reveal>// how it works</p>
-    <h2 id="how-title" class="section-title-lg" data-reveal>Four steps from IP address to insight.</h2>
-    <p class="story-lede" data-reveal>Follow one check from a saved address to the dashboard. The line fills in as you scroll.</p>
+    <p class="section-kicker" data-reveal>// follow a ping</p>
+    <h2 id="how-title" class="section-title-lg" data-reveal>Follow one ping across the network.</h2>
+    <p class="story-lede" data-reveal>Scroll to send a packet from this PC, through the home router, to a device and back. Every number on the way is something the app really measures.</p>
     <div class="story" data-story>
+      <figure class="ping-path" aria-hidden="true"{% if latest_ping and latest_ping.status == "online" and latest_ping.response_time_ms is not none %} data-latency="{{ latest_ping.response_time_ms }}"{% endif %}>
+        <svg viewBox="0 0 600 145" focusable="false">
+          <line class="ping-wire" x1="70" y1="62" x2="530" y2="62"></line>
+          <g class="ping-node"><rect x="36" y="50" width="68" height="24" rx="5"></rect><text x="70" y="102">this PC</text></g>
+          <g class="ping-node"><rect x="266" y="50" width="68" height="24" rx="5"></rect><text x="300" y="102">router</text></g>
+          <g class="ping-node"><rect x="496" y="50" width="68" height="24" rx="5"></rect><text x="530" y="102">device</text></g>
+          <circle class="ping-packet" cx="70" cy="62" r="7"></circle>
+          <text class="ping-readout" x="300" y="134">echo request &middot; TTL 128</text>
+        </svg>
+      </figure>
       <div class="story-rail" aria-hidden="true"><span class="story-fill"></span><span class="story-packet"></span></div>
     <ol class="how-grid story-steps">
-      <li class="how-card glow-card story-step" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal data-phase="request">
         <span class="story-dot" aria-hidden="true"></span>
-        <span class="how-num mono">01</span>{{ icon("add") }}
-        <h3>Save a device</h3>
-        <p>Add a name and an IP. Broadcast, multicast, unspecified and reserved addresses are refused before anything is stored.</p>
+        <span class="how-num mono">01</span>{{ icon("ping") }}
+        <h3>Send an echo request</h3>
+        <p>This PC runs Windows <code>ping -n 5</code>: five ICMP echo requests (type 8), one after another. Each leaves with a TTL, a hop limit that Windows sets to 128.</p>
       </li>
-      <li class="how-card glow-card story-step" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal data-phase="router">
         <span class="story-dot" aria-hidden="true"></span>
-        <span class="how-num mono">02</span>{{ icon("ping") }}
-        <h3>Check it</h3>
-        <p>Windows <code>ping -n 5</code> measures min, median, max, jitter and loss. TCP checks try one allowed port.</p>
+        <span class="how-num mono">02</span>{{ icon("arrow") }}
+        <h3>Pass through the router</h3>
+        <p>The home router forwards it toward the device and takes 1 off the TTL. If a TTL ever reaches 0, the packet is dropped instead of looping forever. Traceroute uses exactly that to find each hop.</p>
       </li>
-      <li class="how-card glow-card story-step" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal data-phase="reply">
         <span class="story-dot" aria-hidden="true"></span>
-        <span class="how-num mono">03</span>{{ icon("store") }}
-        <h3>Keep every result</h3>
-        <p>Each check is written to SQLite with parameterized SQL. A change in status is saved as its own event.</p>
+        <span class="how-num mono">03</span>{{ icon("see") }}
+        <h3>Get an echo reply</h3>
+        <p>The device answers with an echo reply (type 0). The time from request to reply is the latency. From five replies the app saves the median, plus jitter: the average change from one reply to the next.</p>
       </li>
-      <li class="how-card glow-card story-step" data-reveal>
+      <li class="how-card glow-card story-step" data-reveal data-phase="timeout">
         <span class="story-dot" aria-hidden="true"></span>
-        <span class="how-num mono">04</span>{{ icon("see") }}
-        <h3>See the story</h3>
-        <p>Uptime, the 90-day bar, latency bands, incidents, the topology tree and reports are all drawn from those rows.</p>
+        <span class="how-num mono">04</span>{{ icon("shield") }}
+        <h3>Or hear nothing back</h3>
+        <p>Each request waits up to 1000 ms. Every one that times out counts as packet loss. All five lost means Offline, and a check that could not run is an Error. A device that was never checked stays Unknown, not Offline.</p>
+      </li>
+      <li class="how-card glow-card story-step" data-reveal data-phase="store">
+        <span class="story-dot" aria-hidden="true"></span>
+        <span class="how-num mono">05</span>{{ icon("store") }}
+        <h3>Save it, then draw it</h3>
+        <p>The result goes into SQLite. A change of status is saved as its own event, and a drop to offline becomes an incident. Uptime, the 90-day bar, the latency chart and the topology are all drawn from those rows.</p>
+      </li>
+      <li class="how-card glow-card story-step story-live" data-reveal data-phase="live">
+        <span class="story-dot" aria-hidden="true"></span>
+        <span class="how-num mono">06</span>{{ icon("see") }}
+        <h3>{% if demo_mode %}The latest sample check{% else %}The latest real check{% endif %}</h3>
+        {% if latest_ping %}
+          <p class="story-live-result">
+            <span class="status status-{{ latest_ping.status }}">{{ latest_ping.status | capitalize }}</span>
+            {% if latest_ping.status == "online" and latest_ping.response_time_ms is not none %}
+              <strong>{{ latest_ping.name }}</strong> replied in <strong class="mono">{{ latest_ping.response_time_ms }} ms</strong>, checked {{ latest_ping.ago_label }}.
+            {% elif latest_ping.status == "online" %}
+              <strong>{{ latest_ping.name }}</strong> answered, checked {{ latest_ping.ago_label }}.
+            {% elif latest_ping.status == "offline" %}
+              <strong>{{ latest_ping.name }}</strong> did not reply on its last check, {{ latest_ping.ago_label }}.
+            {% else %}
+              The last check of <strong>{{ latest_ping.name }}</strong> could not run, {{ latest_ping.ago_label }}.
+            {% endif %}
+          </p>
+          <p>{% if demo_mode %}This copy shows sample data, so this is not a live reading.{% elif hosted_mode %}Sent by the agent on the home PC. <a href="{{ url_for('devices.inventory') }}">Open the dashboard</a>.{% else %}<a href="{{ url_for('devices.inventory') }}">Open the dashboard</a>.{% endif %}</p>
+        {% else %}
+          <p>No check has been saved yet, so there is nothing live to show here.</p>
+        {% endif %}
       </li>
     </ol>
     </div>

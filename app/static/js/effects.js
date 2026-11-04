@@ -233,6 +233,31 @@
     root.classList.add("fx-story");
     var rail = story.querySelector(".story-rail");
     var steps = story.querySelectorAll(".story-step");
+    /* The path figure: the packet goes PC -> router -> device and back, and the
+       readout names what is happening at the step you are reading. */
+    var pingPath = story.querySelector(".ping-path");
+    var pingPacket = pingPath && pingPath.querySelector(".ping-packet");
+    var pingReadout = pingPath && pingPath.querySelector(".ping-readout");
+    var latency = pingPath && pingPath.getAttribute("data-latency");
+    /* Out to the device by step 3, back during the reply, faded while lost, home to be saved. */
+    var pingKeys = [[0, 70], [0.17, 280], [0.33, 530], [0.5, 300], [0.67, 300], [0.83, 70], [1, 70]];
+    var pingLabels = {
+      request: "echo request \u00b7 TTL 128",
+      router: "forwarded by the router \u00b7 TTL 127",
+      reply: latency ? "echo reply \u00b7 " + latency + " ms" : "echo reply \u00b7 latency measured",
+      timeout: "no reply in 1000 ms = packet loss",
+      store: "result saved to SQLite",
+      live: "shown on the dashboard"
+    };
+    var pingX = function (p) {
+      for (var i = 1; i < pingKeys.length; i++) {
+        if (p <= pingKeys[i][0]) {
+          var a = pingKeys[i - 1], b = pingKeys[i];
+          return a[1] + (b[1] - a[1]) * ((p - a[0]) / (b[0] - a[0]));
+        }
+      }
+      return pingKeys[pingKeys.length - 1][1];
+    };
     var queued = false;
     var paintStory = function () {
       queued = false;
@@ -241,9 +266,19 @@
       var p = Math.max(0, Math.min(1, (focus - r.top) / Math.max(1, r.height)));
       story.style.setProperty("--story", p.toFixed(4));
       story.style.setProperty("--story-px", (p * rail.offsetHeight).toFixed(1) + "px");
+      var phase = "request";
       each(steps, function (step) {
-        step.classList.toggle("is-active", step.getBoundingClientRect().top < focus);
+        var active = step.getBoundingClientRect().top < focus;
+        step.classList.toggle("is-active", active);
+        if (active && step.getAttribute("data-phase")) phase = step.getAttribute("data-phase");
       });
+      if (pingPacket) {
+        pingPacket.setAttribute("cx", pingX(p).toFixed(1));
+        pingPacket.classList.toggle("is-reply", phase === "reply" || phase === "store" || phase === "live");
+        pingPath.classList.toggle("is-lost", phase === "timeout");
+        var label = pingLabels[phase] || pingLabels.request;
+        if (pingReadout.textContent !== label) pingReadout.textContent = label;
+      }
     };
     var queueStory = function () { if (!queued) { queued = true; requestAnimationFrame(paintStory); } };
     window.addEventListener("scroll", queueStory, { passive: true });
