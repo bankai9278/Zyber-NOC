@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Try it{% endblock %}
+
+{% block content %}
+  <p class="demo-banner sandbox-banner" role="note"><strong>Sandbox.</strong> Pretend devices with made-up data. Nothing here is real, and nothing is pinged or contacted. Only you can see it. It is kept in your browser's cookie and resets in about {{ minutes_left }} minute{% if minutes_left != 1 %}s{% endif %}.</p>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">Try it</p>
+      <h1>Sandbox</h1>
+      <p class="lede">Add a pretend device, run a pretend check, edit it, or delete it. The real dashboard is not affected.</p>
+    </div>
+    {% if devices %}
+    <div class="row-actions">
+      <form class="inline-form" method="post" action="{{ url_for('sandbox.reset') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit">Empty the sandbox</button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+
+  <section class="panel" aria-labelledby="sandbox-summary-heading">
+    <h2 id="sandbox-summary-heading" class="section-title">Summary (made up)</h2>
+    <ul class="summary">
+      <li class="stat-total"><p class="summary-label">Total devices</p><p class="summary-value">{{ summary.total }}</p></li>
+      <li class="stat-online"><p class="summary-label">Online</p><p class="summary-value">{{ summary.online }}</p></li>
+      <li class="stat-offline"><p class="summary-label">Offline</p><p class="summary-value">{{ summary.offline }}</p></li>
+      <li class="stat-error"><p class="summary-label">Error</p><p class="summary-value">{{ summary.error }}</p></li>
+    </ul>
+  </section>
+
+  <section class="panel" aria-labelledby="sandbox-devices-heading">
+    <h2 id="sandbox-devices-heading" class="section-title">Pretend devices</h2>
+    {% if devices %}
+    <div class="table-wrap">
+      <table>
+        <caption>Pretend devices and their made-up checks</caption>
+        <thead>
+          <tr>
+            <th scope="col">Device name</th>
+            <th scope="col">Device type</th>
+            <th scope="col">Location</th>
+            <th scope="col">Status</th>
+            <th scope="col">Uptime</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for device in devices %}
+          <tr>
+            <td data-label="Device name">
+              {{ device.name }}
+              <div class="history-bar history-bar-compact">
+                {% for status in device.history %}<span class="history-block history-{{ status }}" title="Made-up check: {{ status }}"></span>{% endfor %}
+              </div>
+            </td>
+            <td data-label="Device type"><span class="visually-hidden">Device type: </span>{{ device.type }}</td>
+            <td data-label="Location"><span class="visually-hidden">Location: </span>{{ device.location }}</td>
+            <td data-label="Status"><span class="visually-hidden">Status: </span><span class="status status-{{ device.status }}">{{ device.status_label }}</span></td>
+            <td data-label="Uptime"><span class="visually-hidden">Uptime: </span>{{ device.uptime_label }} of {{ device.checks }} made-up checks</td>
+            <td data-label="Actions">
+              <div class="row-actions">
+                <form class="inline-form" method="post" action="{{ url_for('sandbox.pretend_check', device_id=device.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit">Pretend check</button>
+                </form>
+                <a href="{{ url_for('sandbox.edit_device', device_id=device.id) }}">Edit</a>
+                <form class="inline-form" method="post" action="{{ url_for('sandbox.delete_device', device_id=device.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="button-danger">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p>No pretend devices yet. Add one below.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="sandbox-add-heading">
+    <h2 id="sandbox-add-heading" class="section-title">Add a pretend device</h2>
+    {% if full %}
+      <p>The sandbox is full. Delete a device to add another.</p>
+    {% else %}
+      {% if error %}<p class="error" id="sandbox-error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="{{ url_for('sandbox.add_device') }}" {% if error %}aria-describedby="sandbox-error"{% endif %}>
+        {% include "sandbox/_form_fields.html" %}
+        <div class="actions">
+          <button class="primary" type="submit">Add pretend device</button>
+        </div>
+      </form>
+    {% endif %}
+  </section>
+{% endblock %}

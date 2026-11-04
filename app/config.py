@@ -106,6 +106,9 @@ class Config:
     LOGIN_MAX_FAILURES = 5
     LOGIN_LOCKOUT_SECONDS = 15 * 60
     PERMANENT_SESSION_LIFETIME = timedelta(hours=12)
+    # The /try sandbox: pretend devices kept in the visitor's own session cookie.
+    SANDBOX_MAX_DEVICES = 8
+    SANDBOX_TTL_SECONDS = 60 * 60
 
 
 class TestConfig(Config):

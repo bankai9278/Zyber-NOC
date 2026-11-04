@@ -32,6 +32,7 @@
         <a href="{{ url_for('devices.topology') }}" {% if request.endpoint == 'devices.topology' %}aria-current="page"{% endif %}>Topology</a>
         <a href="{{ url_for('site.reports') }}" {% if request.endpoint == 'site.reports' %}aria-current="page"{% endif %}>Reports</a>
         <a href="{{ url_for('site.about') }}" {% if request.endpoint == 'site.about' %}aria-current="page"{% endif %}>About</a>
+        <a href="{{ url_for('sandbox.index') }}" {% if request.blueprint == 'sandbox' %}aria-current="page"{% endif %}>Try it</a>
         {% if can_edit %}
         <a href="{{ url_for('devices.new_device') }}" {% if request.endpoint == 'devices.new_device' %}aria-current="page"{% endif %}>Add device</a>
         {% endif %}

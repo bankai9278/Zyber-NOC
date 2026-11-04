@@ -1,0 +1,17 @@
+<input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<label for="sandbox-name">Device name</label>
+<input id="sandbox-name" name="name" value="{{ form.name }}" required maxlength="40" autocomplete="off">
+<label for="sandbox-type">Device type</label>
+<select id="sandbox-type" name="type">
+  {% for kind in device_types %}
+    <option value="{{ kind }}" {% if form.type == kind %}selected{% endif %}>{{ kind }}</option>
+  {% endfor %}
+</select>
+<label for="sandbox-location">Location <span class="optional">(optional)</span></label>
+<input id="sandbox-location" name="location" value="{{ form.location }}" maxlength="40" autocomplete="off">
+<label for="sandbox-status">Pretend status</label>
+<select id="sandbox-status" name="status">
+  {% for value, label in [("online", "Online"), ("offline", "Offline"), ("error", "Error")] %}
+    <option value="{{ value }}" {% if form.status == value %}selected{% endif %}>{{ label }}</option>
+  {% endfor %}
+</select>

@@ -11,6 +11,7 @@ from app.csrf import current_csrf_token, rejected_csrf
 from app.database import initialize_database
 from app.demo import seed_demo_database
 from app.routes.agent import bp as agent_bp
+from app.routes.sandbox import bp as sandbox_bp
 from app.routes.devices import bp as devices_bp
 from app.routes.devices import start_scheduled_checks
 from app.routes.health import bp as health_bp
@@ -60,6 +61,7 @@ def create_app(config_class=Config):
     app.register_blueprint(site_bp)
     app.register_blueprint(agent_bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(sandbox_bp)
 
     @app.after_request
     def add_security_headers(response):
@@ -73,6 +75,9 @@ def create_app(config_class=Config):
     def keep_demo_read_only():
         # Runs before the CSRF check, so a blocked form gets this page instead.
         if not app.config.get("DEMO_MODE"):
+            return None
+        # The sandbox only changes the visitor's own cookie, so it works in the demo too.
+        if request.blueprint == "sandbox":
             return None
         if request.method in READ_METHODS and request.endpoint not in DEMO_BLOCKED_ENDPOINTS:
             return None

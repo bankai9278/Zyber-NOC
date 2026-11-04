@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Edit pretend device{% endblock %}
+
+{% block content %}
+  <p class="demo-banner sandbox-banner" role="note"><strong>Sandbox.</strong> Pretend devices with made-up data. Nothing here is real, and nothing is pinged or contacted.</p>
+  <p class="back-link"><a href="{{ url_for('sandbox.index') }}">Back to the sandbox</a></p>
+  <p class="eyebrow">Try it</p>
+  <h1>Edit {{ device.name }}</h1>
+  {% if error %}<p class="error" id="sandbox-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ url_for('sandbox.edit_device', device_id=device.id) }}" {% if error %}aria-describedby="sandbox-error"{% endif %}>
+    {% include "sandbox/_form_fields.html" %}
+    <div class="actions">
+      <button class="primary" type="submit">Save changes</button>
+      <a href="{{ url_for('sandbox.index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}
