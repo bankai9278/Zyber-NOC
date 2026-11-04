@@ -15,8 +15,9 @@ __pycache__/
 instance/
 *.db
 
-# Local editor and Claude Code preview settings.
+# Local editor settings and private working notes.
 .claude/
+AI_HANDOFF.md
 
 # Home agent settings (holds the agent key) and its log.
 agent/config.json
