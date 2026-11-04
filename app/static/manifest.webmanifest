@@ -1,0 +1,17 @@
+{
+  "name": "Zyber NOC",
+  "short_name": "Zyber NOC",
+  "description": "Network operations console: device status, uptime, incidents, and topology.",
+  "id": "/",
+  "start_url": "/devices",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07090a",
+  "theme_color": "#07090a",
+  "icons": [
+    {"src": "/static/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

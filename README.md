@@ -50,6 +50,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Download one device's history as CSV. The file keeps the stored UTC timestamps.
 - Show timestamps in America/Toronto local time. The database still stores UTC.
 - Optional hosted live mode: the website never pings; a home agent (`agent/agent.py`) checks the saved devices every 5 minutes and posts the results with a shared key. One admin sign-in; signed-out visitors see names and statuses but not addresses or descriptions. The dashboard shows when the last result arrived.
+- Installs as an app on Android (and other browsers that support it): a web app manifest at `/manifest.webmanifest`, icons drawn by `tools/make_icons.py` with the standard library, and a service worker at `/service-worker.js`. The worker stores only files under `/static/` and an offline page. Pages, `/api/` JSON, sign-in, and CSV downloads always come from the network and are never stored, so a phone never shows an old status as live. On Android Chrome, open the site and choose **Add to Home screen** or **Install app**.
 - Optional outage alerts, off by default. When turned on, a saved check that changes a device to offline or error is written to `instance/alerts.log`, and can also be emailed through your own mail server. Demo mode never alerts.
 - Leave scheduled checks off. When enabled in config, one background thread runs Check all at an interval of at least 1 minute.
 - Use the Cyber terminal theme in `app/static/css/theme-terminal.css`. Pages load it after `style.css`. System fonts and Cascadia Mono only. No extra font download.
@@ -104,6 +105,7 @@ flowchart TD
 | `app/auth.py` | Admin sign-in and sign-out, the sign-in rate limit, and hiding addresses and descriptions when signed out |
 | `agent/agent.py` | Home agent for hosted mode. Runs once: fetch devices, check them, post the results |
 | `tools/zyber_secrets.py` | Makes the agent key and the admin password hash |
+| `tools/make_icons.py` | Draws the app icons `icon-192.png` and `icon-512.png` with the standard library |
 | `app/database.py` | SQLite tables and parameterized queries |
 | `app/monitoring.py` | Validates one saved address, runs Windows ping, and connects to an allowed TCP port |
 | `app/presentation.py` | Turns saved values into labels, Toronto times, the topology map, the latency chart, and the status bars |

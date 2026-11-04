@@ -5,8 +5,9 @@ Nothing here runs a check or writes to the database.
 """
 
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from flask import Blueprint, abort, current_app, render_template
+from flask import Blueprint, abort, current_app, render_template, send_from_directory
 
 from app.auth import can_view_private, hide_private
 from app.database import (
@@ -175,3 +176,20 @@ def _iso(seconds):
 
 def _round(value):
     return int(value + 0.5)
+
+
+@bp.get("/service-worker.js")
+def service_worker():
+    """Serve the service worker from the site root, so its scope is the whole site."""
+    response = send_from_directory(
+        Path(current_app.static_folder) / "js", "service-worker.js", mimetype="text/javascript", max_age=0
+    )
+    # The browser must check for a new worker on every visit.
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@bp.get("/manifest.webmanifest")
+def web_manifest():
+    """The web app manifest that lets phones install the site as an app."""
+    return send_from_directory(current_app.static_folder, "manifest.webmanifest", mimetype="application/manifest+json")

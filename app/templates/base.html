@@ -9,6 +9,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/premium.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/effects.css') }}">
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo-yo.svg') }}">
+  <link rel="manifest" href="{{ url_for('site.web_manifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-192.png') }}">
+  <meta name="theme-color" content="#07090a">
 </head>
 <body class="{% block body_class %}page-app{% endblock %}">
   <div class="fx-spotlight" aria-hidden="true"></div>
@@ -93,6 +96,7 @@
   {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/premium.js') }}"></script>
   <script src="{{ url_for('static', filename='js/effects.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/pwa.js') }}"></script>
   {% if demo_mode %}
   <script src="{{ url_for('static', filename='js/tour.js') }}"></script>
   {% endif %}
