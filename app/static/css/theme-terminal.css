@@ -282,3 +282,4 @@ tbody tr:hover td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
     filter: none !important;
   }
 }
+.snmp-index { color: var(--muted); font-size: .8em; }

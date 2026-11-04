@@ -20,6 +20,14 @@ def _env_text(name):
     return os.environ.get(name, "").strip()
 
 
+def _env_port(name, default):
+    """Read a UDP or TCP port number. Anything outside 1-65535 uses the default."""
+    value = _env_text(name)
+    if value.isdigit() and 1 <= int(value) <= 65535:
+        return int(value)
+    return default
+
+
 class Config:
     """Settings for running the app on this Windows PC."""
 
@@ -66,6 +74,13 @@ class Config:
     ALERT_EMAIL_FROM = _env_text("ZYBER_ALERT_FROM")
     # One address, or several separated by commas.
     ALERT_EMAIL_TO = _env_text("ZYBER_ALERT_TO")
+    # SNMP v2c polling of a saved device's interfaces. Read-only. The community
+    # string is a password for SNMP, so set it as an environment variable.
+    # ZYBER_SNMP_PORT is only for the local simulator (tools/snmp_simulator.py).
+    SNMP_COMMUNITY = _env_text("ZYBER_SNMP_COMMUNITY") or "public"
+    SNMP_PORT = _env_port("ZYBER_SNMP_PORT", 161)
+    SNMP_TIMEOUT_SECONDS = 2
+    SNMP_TOTAL_SECONDS = 15
 
 
 class TestConfig(Config):
@@ -89,3 +104,6 @@ class TestConfig(Config):
     ALERT_SMTP_PASSWORD = ""
     ALERT_EMAIL_FROM = ""
     ALERT_EMAIL_TO = ""
+    # Tests point SNMP at an in-process simulator on a free port.
+    SNMP_COMMUNITY = "public"
+    SNMP_PORT = 161

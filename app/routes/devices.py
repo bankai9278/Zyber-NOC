@@ -9,6 +9,7 @@ from io import StringIO
 from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 
 from app.alerts import notify_outage
+from app.snmp import SnmpError, SnmpTimeout, poll_interfaces
 from app.database import (
     DatabaseError,
     ValidationError,
@@ -17,12 +18,14 @@ from app.database import (
     get_device,
     get_device_overview,
     get_monitoring_history,
+    get_snmp_view,
     list_devices,
     list_incidents,
     list_monitoring_window,
     list_status_changes,
     parse_device_filter,
     save_monitoring_result,
+    save_snmp_poll,
     summarize_monitoring_results,
     update_device,
 )
@@ -42,6 +45,7 @@ from app.presentation import (
     present_history,
     present_incidents,
     present_overview,
+    present_snmp,
     present_status_changes,
     status_history,
     topology_map,
@@ -157,6 +161,7 @@ def device_detail(device_id):
     try:
         stored_history = get_monitoring_history(_database_path(), device["id"])
         history_bar = _history_bars([device["id"]], 90)[device["id"]]
+        snmp = present_snmp(get_snmp_view(_database_path(), device["id"]))
     except (ValidationError, DatabaseError):
         return _database_page("The monitoring history could not be loaded.")
     history_limit = current_app.config["HISTORY_LIMIT"]
@@ -187,7 +192,50 @@ def device_detail(device_id):
         tcp_ports=ALLOWED_TCP_PORTS,
         chart=latency_chart(visible_history),
         history_bar=history_bar,
+        snmp=snmp,
     )
+
+
+@bp.post("/devices/<int:device_id>/snmp")
+def poll_device_snmp(device_id):
+    """Read one saved device's interfaces over SNMP and store what it answered."""
+    device = _find_device(device_id)
+    back = redirect(url_for("devices.device_detail", device_id=device["id"]) + "#snmp-heading")
+    if not _acquire_check():
+        flash("A check is already running. Wait for it to finish.")
+        return back
+    try:
+        view = get_snmp_view(_database_path(), device["id"])
+        if view["latest"] and checked_recently(
+            view["latest"]["recorded_at"], current_app.config["CHECK_COOLDOWN_SECONDS"], datetime.now(timezone.utc)
+        ):
+            flash("This device was polled recently. Wait a few seconds before polling it again.")
+            return back
+        try:
+            interfaces = poll_interfaces(
+                device["ip_address"],
+                community=current_app.config["SNMP_COMMUNITY"],
+                port=current_app.config["SNMP_PORT"],
+                timeout_seconds=current_app.config["SNMP_TIMEOUT_SECONDS"],
+                total_seconds=current_app.config["SNMP_TOTAL_SECONDS"],
+            )
+            saved = {"status": "ok", "interfaces": interfaces}
+            message = f"SNMP poll saved: {_count_phrase(len(interfaces), 'interface', 'interfaces')}."
+        except SnmpTimeout:
+            saved = {"status": "no_reply", "error_details": "No SNMP reply. Check that SNMP is on and the community string matches."}
+            message = "The device did not answer SNMP. The poll was saved as No reply."
+        except (SnmpError, OSError) as exc:
+            detail = str(exc) if isinstance(exc, SnmpError) else "The SNMP request could not be sent."
+            saved = {"status": "error", "error_details": detail}
+            message = "The SNMP poll failed. The error was saved."
+        save_snmp_poll(_database_path(), device_id=device["id"], **saved)
+        flash(message)
+        return back
+    except (ValidationError, DatabaseError):
+        flash("The SNMP poll could not be saved.")
+        return back
+    finally:
+        _check_lock.release()
 
 
 @bp.post("/devices/<int:device_id>/check-port")

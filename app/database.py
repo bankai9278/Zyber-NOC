@@ -72,7 +72,36 @@ CREATE TABLE IF NOT EXISTS status_changes (
 
 CREATE INDEX IF NOT EXISTS idx_status_changes_recorded
     ON status_changes (recorded_at, id);
+
+CREATE TABLE IF NOT EXISTS snmp_polls (
+    id INTEGER PRIMARY KEY,
+    device_id INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('ok', 'no_reply', 'error')),
+    error_details TEXT,
+    recorded_at TEXT NOT NULL,
+    FOREIGN KEY (device_id) REFERENCES devices (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snmp_polls_device_recorded
+    ON snmp_polls (device_id, recorded_at);
+
+CREATE TABLE IF NOT EXISTS snmp_interfaces (
+    id INTEGER PRIMARY KEY,
+    poll_id INTEGER NOT NULL,
+    if_index INTEGER NOT NULL CHECK (if_index >= 0),
+    name TEXT NOT NULL,
+    oper_status TEXT NOT NULL,
+    in_octets INTEGER CHECK (in_octets IS NULL OR in_octets >= 0),
+    out_octets INTEGER CHECK (out_octets IS NULL OR out_octets >= 0),
+    counter_bits INTEGER NOT NULL CHECK (counter_bits IN (32, 64)),
+    FOREIGN KEY (poll_id) REFERENCES snmp_polls (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_snmp_interfaces_poll
+    ON snmp_interfaces (poll_id);
 """
+SNMP_POLL_STATUSES = ("ok", "no_reply", "error")
+MAX_SNMP_INTERFACES = 48
 
 
 class ValidationError(ValueError):
@@ -342,6 +371,17 @@ def delete_device(database_path, device_id):
             (device_id,),
         )
         connection.execute(
+            """
+            DELETE FROM snmp_interfaces
+            WHERE poll_id IN (SELECT id FROM snmp_polls WHERE device_id = ?)
+            """,
+            (device_id,),
+        )
+        connection.execute(
+            "DELETE FROM snmp_polls WHERE device_id = ?",
+            (device_id,),
+        )
+        connection.execute(
             "DELETE FROM monitoring_results WHERE device_id = ?",
             (device_id,),
         )
@@ -571,6 +611,100 @@ def get_monitoring_history(database_path, device_id):
         return [dict(row) for row in rows]
 
 
+def save_snmp_poll(database_path, *, device_id, status, interfaces=(), error_details=None, recorded_at=None):
+    """Store one SNMP poll and the interfaces it read, in one transaction.
+
+    SNMP results are kept apart from ping results: a poll never changes a
+    device's status, uptime, or incidents.
+    """
+    device_id = _validate_id(device_id, "Device ID")
+    if status not in SNMP_POLL_STATUSES:
+        raise ValidationError("SNMP poll status must be ok, no_reply, or error.")
+    error_details = _validate_text(error_details, "Error details", MAX_ERROR_LENGTH, required=False)
+    interfaces = list(interfaces)
+    if status != "ok" and interfaces:
+        raise ValidationError("Only a successful SNMP poll can store interfaces.")
+    if len(interfaces) > MAX_SNMP_INTERFACES:
+        raise ValidationError(f"An SNMP poll can store at most {MAX_SNMP_INTERFACES} interfaces.")
+    rows = [_validate_snmp_interface(item) for item in interfaces]
+    recorded_at = recorded_at or _timestamp()
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        if _get_device_row(connection, device_id) is None:
+            raise ValidationError("Device does not exist.")
+        cursor = connection.execute(
+            """
+            INSERT INTO snmp_polls (device_id, status, error_details, recorded_at)
+            VALUES (?, ?, ?, ?)
+            """,
+            (device_id, status, error_details, recorded_at),
+        )
+        poll_id = cursor.lastrowid
+        connection.executemany(
+            """
+            INSERT INTO snmp_interfaces
+                (poll_id, if_index, name, oper_status, in_octets, out_octets, counter_bits)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [(poll_id, *row) for row in rows],
+        )
+        return {"id": poll_id, "device_id": device_id, "status": status, "recorded_at": recorded_at}
+
+
+def get_snmp_view(database_path, device_id):
+    """Return the newest SNMP poll and the newest successful one before it.
+
+    The page needs both: the latest poll for the status, and two successful
+    polls to turn counters into traffic rates. Each poll includes its interfaces.
+    Either value is None when there is no such poll.
+    """
+    device_id = _validate_id(device_id, "Device ID")
+    with _connection(database_path) as connection:
+        _require_tables(connection)
+        latest = _snmp_poll(
+            connection,
+            "WHERE device_id = ? ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            (device_id,),
+        )
+        last_ok = latest if latest and latest["status"] == "ok" else _snmp_poll(
+            connection,
+            "WHERE device_id = ? AND status = 'ok' ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            (device_id,),
+        )
+        previous_ok = None
+        if last_ok is not None:
+            previous_ok = _snmp_poll(
+                connection,
+                """
+                WHERE device_id = ? AND status = 'ok' AND (recorded_at < ? OR (recorded_at = ? AND id < ?))
+                ORDER BY recorded_at DESC, id DESC LIMIT 1
+                """,
+                (device_id, last_ok["recorded_at"], last_ok["recorded_at"], last_ok["id"]),
+            )
+        return {"latest": latest, "last_ok": last_ok, "previous_ok": previous_ok}
+
+
+def _snmp_poll(connection, where_order, params):
+    row = connection.execute(
+        "SELECT id, device_id, status, error_details, recorded_at FROM snmp_polls " + where_order,
+        params,
+    ).fetchone()
+    if row is None:
+        return None
+    poll = dict(row)
+    poll["interfaces"] = [
+        dict(item)
+        for item in connection.execute(
+            """
+            SELECT if_index, name, oper_status, in_octets, out_octets, counter_bits
+            FROM snmp_interfaces WHERE poll_id = ? ORDER BY if_index ASC
+            """,
+            (poll["id"],),
+        ).fetchall()
+    ]
+    return poll
+
+
 def list_monitoring_window(database_path, device_ids, start_at, end_at):
     """Return saved results for several devices in one query.
 
@@ -794,6 +928,24 @@ def _validate_result(
         "jitter_ms": _validate_optional_ms(jitter_ms, "Jitter"),
         "packet_loss_pct": _validate_packet_loss(packet_loss_pct),
     }
+
+
+def _validate_snmp_interface(item):
+    if_index = item.get("if_index")
+    if isinstance(if_index, bool) or not isinstance(if_index, int) or if_index < 0:
+        raise ValidationError("Interface index must be a whole number.")
+    name = _validate_text(item.get("name"), "Interface name", MAX_NAME_LENGTH, required=True)
+    oper_status = _validate_text(item.get("oper_status"), "Interface status", 20, required=True)
+    counters = []
+    for key in ("in_octets", "out_octets"):
+        value = item.get(key)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int) or value < 0):
+            raise ValidationError("Interface counters must be whole numbers of 0 or more.")
+        counters.append(value)
+    counter_bits = item.get("counter_bits")
+    if counter_bits not in (32, 64):
+        raise ValidationError("Counter size must be 32 or 64 bits.")
+    return (if_index, name, oper_status, counters[0], counters[1], counter_bits)
 
 
 def _validate_optional_ms(value, label):

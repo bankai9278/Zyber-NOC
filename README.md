@@ -43,6 +43,7 @@ This is a learning project. It runs on your own computer and does not discover d
 - Mark a child incident as caused by a parent outage when the parent was already offline at that time.
 - Open a Topology page that draws the parent and child tree as inline SVG. Each device links to its own page.
 - Check TCP ports 22, 53, 80, 443, and 3389 on a saved device. No other port is opened.
+- **Poll SNMP** on a device page reads each interface's name, up or down status, and traffic counters over SNMP v2c (read-only, standard library only). Two saved polls turn the counters into traffic in and out. A poll never changes the device's ping status, uptime, or incidents.
 - Draw a response-time chart on the device page from the last 20 saved checks, using inline SVG. The line is the median, with a band from the saved minimum to maximum. Point colour follows that check's packet loss.
 - Show jitter and packet loss from the latest saved ping. Both stay Unknown until a result exists, and Not measured when that result did not store the value.
 - Show a 90-day status bar on the device page and a 30-day bar on each dashboard row. Colour comes from the worst saved status that day. Days with no checks stay grey. The 90-day uptime uses only checks in that window.
@@ -197,6 +198,32 @@ GitHub Actions runs the same tests on `windows-latest`. The workflow file is `.g
 
 Use a device you control. Do not add an address at work, school, or another network unless you are allowed to monitor it.
 
+## SNMP interface polling
+
+**Poll SNMP** on a device page sends SNMP v2c GetNext requests to that saved device on UDP port 161 and stores what it answers: each interface's name, whether it is up or down, and its in and out byte counters (64-bit when the device has them, 32-bit otherwise). It only reads. It never sends an SNMP set.
+
+- The community string is `public` unless you set another one before starting the app: `$env:ZYBER_SNMP_COMMUNITY = "your-community"`. It works like a password, so keep it out of files you commit.
+- Traffic rates need two answered polls. Poll again after at least 15 seconds and the page shows bits per second in and out for each interface. A 32-bit counter that rolls over is handled; a 64-bit counter that goes backwards means the device restarted, so that rate says Unknown.
+- If the device does not answer, the poll is saved as **No reply** and the page keeps showing the interfaces from the last poll that answered.
+- Demo mode never polls. It shows sample interfaces for a few sample devices.
+
+### Try it without a switch
+
+`tools/snmp_simulator.py` is a small SNMP agent with four made-up interfaces whose counters grow at a steady rate. It listens on `127.0.0.1` only.
+
+```powershell
+.\.venv\Scripts\python.exe tools\snmp_simulator.py
+```
+
+In a second PowerShell window:
+
+```powershell
+$env:ZYBER_SNMP_PORT = "1161"
+.\.venv\Scripts\python.exe run.py
+```
+
+Add a device with IP `127.0.0.1`, open it, and press **Poll SNMP** twice, at least 15 seconds apart. Remove `ZYBER_SNMP_PORT` (or open a new window) before polling real equipment, which listens on 161.
+
 ## Outage alerts (optional)
 
 Alerts are off by default. An alert is raised when a saved check changes a device's status to **offline** or **error**, the same rule the incidents panel uses. A device's first check is not a change, so it never alerts, and a return to online does not alert either.
@@ -289,7 +316,8 @@ The images at the top of this file are in `docs/screenshots/`. They were capture
 - Connectivity checks use ICMP through Windows `ping` only. They use 5 attempts and a 1000 millisecond wait for each reply.
 - A host or firewall that blocks ICMP can appear Offline even though it answers other traffic.
 - Windows can also block `ping` when the command is not permitted. The app then saves an error instead of a response time.
-- TCP checks connect only to ports 22, 53, 80, 443, and 3389, with a 2 second timeout. The app does not test other ports, DNS names, websites, switches through SNMP, or wireless signal strength.
+- TCP checks connect only to ports 22, 53, 80, 443, and 3389, with a 2 second timeout. The app does not test other ports, DNS names, websites, or wireless signal strength.
+- SNMP polling is v2c only (no v3 authentication or encryption), reads only the interface table, runs only when someone presses Poll SNMP, and reads at most 48 interfaces per device.
 - Uptime is the percentage of saved results marked online. It is not a measure of elapsed time. Average response time uses only saved response times.
 - The chart plots medians from the latest 20 saved checks and shades min to max only where both were saved. It does not draw a point when a check has no response time. The 90-day bar is status by day, not a longer response-time chart.
 - Displayed times use America/Toronto. CSV export and the database keep UTC.
@@ -304,7 +332,7 @@ The images at the top of this file are in `docs/screenshots/`. They were capture
 
 These items are not built:
 
-- SNMP monitoring for interface status, uptime, or errors on managed network equipment.
+- SNMP v3, scheduled SNMP polls, interface error counters, and a traffic chart over time.
 - Authentication so each technician has their own login.
 - Alert channels beyond the log file and email, such as a Windows notification or a chat webhook, and a recovery alert when a device comes back online.
 - A response-time chart longer than the latest 20 saved checks. The status bar already covers 90 days, but it does not plot latency.

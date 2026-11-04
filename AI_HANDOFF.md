@@ -17,7 +17,7 @@ It is a learning prototype on this PC. It is not a production monitor.
 ## Rules that must stay in place
 
 - Local Windows only. Bind to `127.0.0.1`. Do not add login, cloud hosting, Docker, or extra infrastructure unless a concrete defect requires it. The one exception, approved by the user on Nov 2, 2026, is the read-only demo (item 27): a public copy may be hosted only with `ZYBER_DEMO_MODE` on. Never host normal mode.
-- Do not scan subnets, discover hosts, accept hostnames, or contact arbitrary systems. Ping or TCP-check only devices already saved in the inventory. TCP ports are only 22, 53, 80, 443, and 3389.
+- Do not scan subnets, discover hosts, accept hostnames, or contact arbitrary systems. Ping, TCP-check, or SNMP-poll only devices already saved in the inventory. TCP ports are only 22, 53, 80, 443, and 3389. SNMP is read-only GetNext on the configured SNMP port (161 by default).
 - Use parameterized SQL (`?` placeholders). Never build SQL by string concatenation.
 - Keep CSRF checks on state-changing forms. Do not add Flask-WTF.
 - Never call `subprocess` with `shell=True`. The ping command must be a list of arguments.
@@ -59,7 +59,7 @@ Tests do not need the server, and they must not send real pings:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-The last full run, after the speed pass (Nov 3, 2026), was 281 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
+The last full run, after SNMP polling (Nov 3, 2026), was 321 passed and 0 failed (pytest 9.1.1, Python 3.15.0). Re-run pytest before claiming a newer result.
 
 ## What is already built
 
@@ -99,6 +99,8 @@ The last full run, after the speed pass (Nov 3, 2026), was 281 passed and 0 fail
 33. Animations switch (Nov 3, 2026). When the system asks for reduced motion (Windows "Animation effects" off), the footer shows `Animations: off (system setting)`. Clicking it stores `zyber-motion=on` in localStorage and reloads; `premium.js` then adds `html.motion-on`, and every rule inside a `prefers-reduced-motion: reduce` block in the four stylesheets is scoped to `html:not(.motion-on)` (a test walks every such block). `premium.js`, `effects.js`, and `tour.js` treat motion as allowed when that class is set. Page transitions under reduced motion are skipped from `premium.js` on `pageswap` and `pagereveal`, because an `@view-transition` rule cannot check a class. With no reduced-motion request the switch stays hidden.
 34. Speed pass (Nov 3, 2026). Measured with headless Edge, CPU throttled 6x at 375x812 with touch and 4x at 1440x900. Scrolling frames per second before and after: phone home 11 to 30, dashboard 5 to 60, About 16 to 56, topology 32 to 62; desktop home 15 to 33, dashboard 24 to 56, About 23 to 58. Causes and fixes: `premium.js` set `--progress` and `--mx`/`--my` on `<html>`, which restyled the whole page on every scroll and mouse frame; they now go on the progress bar, spotlight, and cursor ring only, and `is-scrolled` changes only when it flips (a test forbids `root.style.setProperty`). The card glow now updates only the hovered card instead of every card near the mouse. `html.fx-lite` (coarse pointer, data saver, 4 or fewer cores, or 4 GB or less memory) drops the `drop-shadow` glows on the hero illustration and topology, stops the node halo, and keeps only the scanlines of the texture. Loops in the hero, CTA band, topology, and About diagrams pause while off screen (`.fx-paused`). The hero field skips data saver, starts smaller on slow devices, caps the pixel ratio at 1.5 on touch, ignores phone resize events from the address bar, and drops points (or stops) if frames keep taking over 30 ms. The topology dots lost their drop-shadow filter.
 
+35. SNMP interface polling (Nov 3, 2026). Jay asked for it with a simulator, because there are no test switches. `app/snmp.py` encodes and decodes SNMP v2c by hand (BER over UDP, standard library only, no new dependency) and only sends GetNext. `poll_interfaces` walks the IF-MIB columns ifDescr, ifOperStatus, and ifHCInOctets/ifHCOutOctets (falling back to ifInOctets/ifOutOctets, stored as `counter_bits` 32), at most 48 interfaces, 2 second reply timeout with one retry, 15 second total limit. Replies are matched on sender IP, request id, and community. A Windows connection reset on a closed port counts as no reply. Settings: `SNMP_COMMUNITY` from `ZYBER_SNMP_COMMUNITY` (default `public`), `SNMP_PORT` from `ZYBER_SNMP_PORT` (default 161; only for the simulator). Tables `snmp_polls` (status `ok`, `no_reply`, or `error`) and `snmp_interfaces` (one row per interface per poll); deleting a device deletes both. `save_snmp_poll` validates every row and refuses interfaces on a failed poll; `get_snmp_view` returns the latest poll, the latest answered poll, and the answered poll before it. `present_snmp` computes rates only between those two answered polls (`traffic_rate_bps`: a 32-bit counter that went backwards is one wrap, a 64-bit one is a restart, so Unknown). SNMP never changes ping status, uptime, incidents, or alerts. Route `POST /devices/<id>/snmp` (`devices.poll_device_snmp`) uses CSRF, the shared check lock, and the 15 second cooldown against the latest poll, and is in `DEMO_BLOCKED_ENDPOINTS`. The device page has a Poll SNMP button (hidden in demo mode) and an `Interfaces (SNMP)` panel between the 90-day bar and the chart. Demo mode seeds sample interfaces for the firewall, core switch, floor 2 switch (latest poll No reply, interfaces from the day before), and floor 3 switch, from `random.Random(161)`. `tools/snmp_simulator.py` is a local agent on 127.0.0.1 (default port 1161) with four interfaces and steady counters; tests start it on a free port. `.claude/launch.json` has `zyber-noc-snmp-sim-5052`, which runs the simulator and the app against a throwaway database in the temp folder. Tests: `tests/test_snmp.py`.
+
 ## Routes
 
 | Method and path | Behavior |
@@ -118,6 +120,7 @@ The last full run, after the speed pass (Nov 3, 2026), was 281 passed and 0 fail
 | `POST /devices/<id>/check` | Check now. Redirects back to the dashboard when `next=dashboard`, otherwise to the device page |
 | `POST /devices/<id>/check-port` | TCP check of one allowed port |
 | `POST /devices/check` | Check all |
+| `POST /devices/<id>/snmp` | Poll SNMP: read the device's interfaces and save the poll. Blocked in demo mode |
 | `GET/POST /devices/<id>/delete` | Delete confirmation, then delete |
 
 Unexpected exceptions render a safe page that says the request could not be completed. The page does not include the exception text.
@@ -192,6 +195,8 @@ From `app/config.py`:
 | `app/database.py` | Schema, validation, queries |
 | `app/monitoring.py` | Ping command, TCP connect, parsers, batch runner |
 | `app/demo.py` | Builds the sample SQLite file for demo mode. No network access |
+| `app/snmp.py` | SNMP v2c encoder, decoder, and read-only interface poll |
+| `tools/snmp_simulator.py` | Local SNMP agent for trying Poll SNMP without a switch |
 | `app/alerts.py` | Outage alerts: local log line and optional SMTP email. Off by default, never in demo mode |
 | `app/presentation.py` | Status labels, Toronto timestamps, statistics labels, topology layout, latency chart, status bars |
 | `app/zoneinfo/America/Toronto` | TZif data used when the system has no IANA zone |
@@ -213,6 +218,7 @@ From `app/config.py`:
 | `app/static/img/` | `logo-yo.svg` (initials logo, also the favicon), the older unused `favicon.svg`, `grain.svg` (texture tile for effects.css), and three static page images used on the home page |
 | `tests/conftest.py` | Temporary database and test client |
 | `tests/test_alerts.py` | Outage rule, off by default, demo never alerts, log line, email through a stand-in SMTP, failure logging, and the Check now path |
+| `tests/test_snmp.py` | SNMP codec, polls against the simulator, storage, rates, the Poll SNMP route, and demo mode staying read-only |
 | `tests/test_effects.py` | Effect assets, CSP safety, reduced motion, boot intro, scroll story, sound toggle, and topology status markup |
 | `tests/test_tour.py` | Demo-only tour markup, script, CSP safety, and reduced motion |
 | `tests/test_mobile.py` | Phone layout section, swipe hints, CSP safety, no added motion, and demo Refresh keeping View links |
@@ -245,7 +251,7 @@ Commit or push again only when the user asks.
 
 Do not treat these as existing features:
 
-- SNMP and authentication
+- SNMP v3, scheduled SNMP polls, and authentication
 - Alert channels other than the local log file and SMTP email, and recovery alerts
 - A latency chart beyond the latest 20 saved checks. The 90-day bar shows status, not response time
 - TCP ports other than 22, 53, 80, 443, and 3389

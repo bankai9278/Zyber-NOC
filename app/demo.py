@@ -130,6 +130,62 @@ def _write_sample_rows(connection, now):
                 )
             previous = status
             moment += step
+    _write_sample_snmp(connection, ids, now)
+
+
+# Sample SNMP interface tables: device index -> (interface name, up?, in b/s, out b/s).
+_SNMP_DEVICES = {
+    0: (("Sample WAN port", True, 48_000_000, 9_500_000), ("Sample LAN port", True, 9_200_000, 46_000_000),
+        ("Sample DMZ port", False, 0, 0)),
+    1: (("Sample uplink 1", True, 62_000_000, 31_000_000), ("Sample uplink 2", True, 18_000_000, 22_000_000),
+        ("Sample server port", True, 26_000_000, 41_000_000), ("Sample spare port", False, 0, 0)),
+    3: (("Sample uplink", True, 7_000_000, 2_400_000), ("Sample AP port", True, 3_100_000, 900_000)),
+    5: (("Sample uplink", True, 5_500_000, 1_800_000), ("Sample printer port", True, 120_000, 40_000),
+        ("Sample desk port 1", True, 2_300_000, 700_000), ("Sample desk port 2", False, 0, 0)),
+}
+
+
+def _write_sample_snmp(connection, ids, now):
+    """Two answered polls five minutes apart, so the page can show traffic rates.
+
+    The floor 2 switch is offline in the sample, so its newest poll got no reply
+    and its interfaces come from a poll the day before.
+    """
+    rng = random.Random(161)
+    for index, interfaces in _SNMP_DEVICES.items():
+        device_id = ids[index]
+        times = [now - timedelta(minutes=17), now - timedelta(minutes=12)]
+        if index == 3:
+            times = [now - timedelta(days=1, minutes=5), now - timedelta(days=1)]
+        counters = [rng.randint(10 ** 9, 10 ** 11) for _ in interfaces]
+        for poll_number, moment in enumerate(times):
+            cursor = connection.execute(
+                "INSERT INTO snmp_polls (device_id, status, error_details, recorded_at) VALUES (?, 'ok', NULL, ?)",
+                (device_id, _iso(moment)),
+            )
+            for if_index, (name, up, rate_in, rate_out) in enumerate(interfaces, start=1):
+                seconds = 300 * poll_number
+                jitter = 1 + rng.uniform(-0.08, 0.08)
+                connection.execute(
+                    """
+                    INSERT INTO snmp_interfaces
+                        (poll_id, if_index, name, oper_status, in_octets, out_octets, counter_bits)
+                    VALUES (?, ?, ?, ?, ?, ?, 64)
+                    """,
+                    (
+                        cursor.lastrowid,
+                        if_index,
+                        name,
+                        "up" if up else "down",
+                        counters[if_index - 1] + int(rate_in / 8 * seconds * jitter),
+                        counters[if_index - 1] // 3 + int(rate_out / 8 * seconds * jitter),
+                    ),
+                )
+        if index == 3:
+            connection.execute(
+                "INSERT INTO snmp_polls (device_id, status, error_details, recorded_at) VALUES (?, 'no_reply', ?, ?)",
+                (device_id, "Sample: no SNMP reply while the switch is offline.", _iso(now - timedelta(minutes=12))),
+            )
 
 
 def _status_at(index, moment, now, latest):

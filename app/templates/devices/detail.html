@@ -26,6 +26,10 @@
         </select>
         <button type="submit" data-loading-label="Checking port">Check port</button>
       </form>
+      <form class="inline-form" method="post" action="{{ url_for('devices.poll_device_snmp', device_id=device.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="submit" data-loading-label="Polling">Poll SNMP</button>
+      </form>
       <a class="button" href="{{ url_for('devices.edit_device', device_id=device.id) }}">Edit</a>
       <a class="button button-danger" href="{{ url_for('devices.confirm_delete', device_id=device.id) }}">Delete device</a>
     </div>
@@ -102,6 +106,36 @@
       <span class="history-uptime">{{ history_bar.uptime_label }}</span>
       <span>Today</span>
     </div>
+  </section>
+
+  <section class="panel" aria-labelledby="snmp-heading">
+    <h2 id="snmp-heading">Interfaces (SNMP)</h2>
+    {% if not snmp %}
+      <p>No SNMP poll saved for this device.{% if not demo_mode %} Poll SNMP reads each interface's status and traffic counters. It only reads; it never changes the device.{% endif %}</p>
+    {% else %}
+      <p class="status-note">Last poll {{ snmp.polled_label }}: <span class="status status-{{ snmp.status_class }}">{{ snmp.status_label }}</span>{% if snmp.error_details %} {{ snmp.error_details }}{% endif %}</p>
+      {% if snmp.interfaces %}
+        {% if snmp.status != "ok" %}<p class="status-note">The interfaces below are from the last poll that answered, {{ snmp.interfaces_from_label }}.</p>{% endif %}
+        <div class="table-wrap">
+          <table class="snmp-table">
+            <caption>{{ snmp.up_count }} of {{ snmp.interfaces | length }} interfaces up{% if not snmp.has_rates %}. Traffic needs two saved polls{% endif %}</caption>
+            <thead>
+              <tr><th scope="col">Interface</th><th scope="col">Status</th><th scope="col">Traffic in</th><th scope="col">Traffic out</th></tr>
+            </thead>
+            <tbody>
+              {% for item in snmp.interfaces %}
+                <tr>
+                  <td data-label="Interface"><span>{{ item.name }} <span class="mono snmp-index">#{{ item.if_index }}</span></span></td>
+                  <td data-label="Status"><span class="status status-{{ item.status_class }}">{{ item.status }}</span></td>
+                  <td data-label="Traffic in" class="mono">{{ item.in_label }}</td>
+                  <td data-label="Traffic out" class="mono">{{ item.out_label }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    {% endif %}
   </section>
 
   <section class="panel" aria-labelledby="chart-heading">

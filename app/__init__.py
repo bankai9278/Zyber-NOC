@@ -25,6 +25,7 @@ DEMO_BLOCKED_ENDPOINTS = frozenset(
         "devices.check_device",
         "devices.check_device_port",
         "devices.check_all_devices",
+        "devices.poll_device_snmp",
     }
 )
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})

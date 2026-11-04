@@ -684,3 +684,67 @@ def format_local_time(value):
         moment = moment.replace(tzinfo=timezone.utc)
     local = moment.astimezone(TORONTO)
     return local.strftime("%Y-%m-%d %H:%M:%S") + " ET"
+
+
+SNMP_POLL_LABELS = {"ok": "Answered", "no_reply": "No reply", "error": "Error"}
+
+
+def present_snmp(view):
+    """Turn the saved SNMP polls into the device page's Interfaces panel.
+
+    Traffic rates come only from two saved successful polls of the same
+    interface. With one poll, or after a counter reset, the rate is Unknown.
+    """
+    from app.snmp import traffic_rate_bps
+
+    latest = view.get("latest") if view else None
+    if latest is None:
+        return None
+    last_ok = view.get("last_ok")
+    previous_ok = view.get("previous_ok")
+    seconds = None
+    if last_ok and previous_ok:
+        start = _parse_timestamp(previous_ok["recorded_at"])
+        end = _parse_timestamp(last_ok["recorded_at"])
+        if start and end:
+            seconds = (end - start).total_seconds()
+    before = {item["if_index"]: item for item in (previous_ok or {}).get("interfaces", [])}
+    interfaces = []
+    for item in (last_ok or {}).get("interfaces", []):
+        old = before.get(item["if_index"])
+        in_bps = out_bps = None
+        if old is not None and old["counter_bits"] == item["counter_bits"]:
+            in_bps = traffic_rate_bps(old["in_octets"], item["in_octets"], seconds, item["counter_bits"])
+            out_bps = traffic_rate_bps(old["out_octets"], item["out_octets"], seconds, item["counter_bits"])
+        status = item["oper_status"]
+        interfaces.append(
+            {
+                "if_index": item["if_index"],
+                "name": item["name"],
+                "status": status,
+                "status_class": {"up": "online", "down": "offline"}.get(status, "unknown"),
+                "in_label": bits_per_second_label(in_bps),
+                "out_label": bits_per_second_label(out_bps),
+            }
+        )
+    return {
+        "status": latest["status"],
+        "status_label": SNMP_POLL_LABELS.get(latest["status"], "Error"),
+        "status_class": "online" if latest["status"] == "ok" else ("offline" if latest["status"] == "no_reply" else "error"),
+        "error_details": latest.get("error_details"),
+        "polled_label": checked_label(latest["recorded_at"]),
+        "interfaces_from_label": checked_label(last_ok["recorded_at"]) if last_ok else None,
+        "interfaces": interfaces,
+        "has_rates": seconds is not None,
+        "up_count": sum(1 for item in interfaces if item["status"] == "up"),
+    }
+
+
+def bits_per_second_label(bps):
+    """Format a saved traffic rate. None means it cannot be worked out yet."""
+    if bps is None:
+        return "Unknown"
+    for limit, unit in ((1_000_000_000, "Gb/s"), (1_000_000, "Mb/s"), (1_000, "kb/s")):
+        if bps >= limit:
+            return f"{bps / limit:.1f} {unit}"
+    return f"{int(bps)} b/s"
