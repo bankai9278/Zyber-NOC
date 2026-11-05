@@ -99,9 +99,12 @@ def topology():
         overview = _private_overview(present_overview(get_device_overview(_database_path())))
     except DatabaseError:
         return _database_page("The topology could not be loaded.")
+    last_updated, last_updated_at = _last_updated()
     return render_template(
         "devices/topology.html",
         topology=topology_map(overview["devices"]),
+        last_updated=last_updated,
+        last_updated_at=last_updated_at,
     )
 
 
@@ -565,6 +568,12 @@ def _hosted():
     return bool(current_app.config.get("HOSTED_MODE"))
 
 
+def _last_updated():
+    """The newest saved check, as a Toronto label and as the stored UTC text."""
+    latest = latest_result_time(_database_path())
+    return (checked_label(latest) if latest else "No checks saved yet"), latest
+
+
 def _private_overview(overview):
     """Signed out: drop every address and description before anything is rendered."""
     if can_view_private():
@@ -715,8 +724,7 @@ def _dashboard_context():
     overview["incidents"] = incidents
     overview["private_hidden"] = not can_view_private()
     overview["read_only"] = not is_admin()
-    latest = latest_result_time(_database_path())
-    overview["last_updated"] = checked_label(latest) if latest else "No checks saved yet"
+    overview["last_updated"], overview["last_updated_at"] = _last_updated()
     overview["group_by"] = group_by
     overview["groups"] = group_devices(overview["devices"], group_by)
     return overview, changes, device_filter

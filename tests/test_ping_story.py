@@ -153,4 +153,4 @@ def test_font_is_preloaded_served_and_cached(client):
     assert response.headers["Content-Security-Policy"] == "default-src 'self'"
     worker = (STATIC / "js" / "service-worker.js").read_text(encoding="utf-8")
     assert '"/static/fonts/space-grotesk-wght.woff2"' in worker
-    assert 'var CACHE = "zyber-static-v2";' in worker
+    assert re.search(r'var CACHE = "zyber-static-v\d+";', worker)

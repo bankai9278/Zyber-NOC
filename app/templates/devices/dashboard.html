@@ -134,6 +134,7 @@
       data-dashboard
       data-refresh-url="{{ url_for('devices.dashboard_data') }}{% if request.query_string %}?{{ request.query_string.decode() }}{% endif %}"
       data-csrf-token="{{ csrf_token }}"
+      {% if not demo_mode %}data-live-url="{{ url_for('devices.dashboard_data') }}{% if request.query_string %}?{{ request.query_string.decode() }}{% endif %}" data-live-latest="{{ last_updated_at or '' }}"{% endif %}
     >
       <div class="section-heading">
         <h2 id="devices-heading">Devices</h2>
@@ -225,4 +226,5 @@
 {% block scripts %}
   <script src="{{ url_for('static', filename='js/forms.js') }}"></script>
   <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/live.js') }}"></script>
 {% endblock %}

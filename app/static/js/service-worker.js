@@ -7,7 +7,7 @@
  * go to the network and are never stored, so a phone never shows an old
  * status as live and never keeps a signed-in page.
  */
-var CACHE = "zyber-static-v2";
+var CACHE = "zyber-static-v3";
 var PRECACHE = [
   "/static/offline.html",
   "/static/css/style.css",
@@ -19,6 +19,7 @@ var PRECACHE = [
   "/static/js/dashboard.js",
   "/static/js/forms.js",
   "/static/js/pwa.js",
+  "/static/js/live.js",
   "/static/img/logo-yo.svg",
   "/static/img/grain.svg",
   "/static/img/icon-192.png",

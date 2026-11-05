@@ -6,6 +6,7 @@
   <p class="eyebrow">Network monitoring dashboard</p>
   <h1>Topology</h1>
   <p class="lede">Devices are arranged from each saved parent link. A device with no parent is a root.</p>
+  <p class="status-note last-updated">{% if hosted_mode %}Last result from the home agent{% else %}Last check saved{% endif %}: <span id="last-updated">{{ last_updated }}</span>{% if not demo_mode %} &middot; updates by itself while this page is open{% endif %}</p>
 
   <ul class="legend" aria-label="Status colours">
     <li><span class="legend-swatch swatch-online"></span> Online</li>
@@ -26,14 +27,14 @@
       </div>
       <div class="globe-stage" data-globe-stage hidden></div>
     </section>
-    <section class="panel topology-panel" aria-label="Device topology">
+    <section class="panel topology-panel" aria-label="Device topology"{% if not demo_mode %} data-live-url="{{ url_for('devices.dashboard_data') }}" data-live-latest="{{ last_updated_at or '' }}"{% endif %}>
       <div class="topology-wrap">
         <svg class="topology-svg" viewBox="0 0 {{ topology.width }} {{ topology.height }}" width="{{ topology.width }}" height="{{ topology.height }}" role="img" aria-labelledby="topology-title">
           <title id="topology-title">Device topology</title>
           {% for edge in topology.edges %}
             <line class="topology-edge" data-status="{{ edge.status }}" data-edge-child="{{ edge.child_id }}" x1="{{ edge.x1 }}" y1="{{ edge.y1 }}" x2="{{ edge.x2 }}" y2="{{ edge.y2 }}" stroke-width="2"></line>
             {% if edge.status == "online" %}
-            <line class="topology-flow" aria-hidden="true" x1="{{ edge.x1 }}" y1="{{ edge.y1 }}" x2="{{ edge.x2 }}" y2="{{ edge.y2 }}" stroke-width="3"></line>
+            <line class="topology-flow" aria-hidden="true" data-flow-child="{{ edge.child_id }}" x1="{{ edge.x1 }}" y1="{{ edge.y1 }}" x2="{{ edge.x2 }}" y2="{{ edge.y2 }}" stroke-width="3"></line>
             {% endif %}
           {% endfor %}
           {% for node in topology.nodes %}
@@ -54,4 +55,8 @@
       <p class="topology-note">Dots travel along links to devices whose latest saved check was online, and offline devices pulse red, when animations are on. Hover or focus a device to light up its path to the top.</p>
     </section>
   {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='js/live.js') }}"></script>
 {% endblock %}

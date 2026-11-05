@@ -20,6 +20,12 @@
 
   refreshButton.addEventListener("click", refreshStatus);
 
+  // live.js polls the same JSON in the background and hands it over here.
+  document.addEventListener("zyber:live-data", function (event) {
+    renderDashboard(event.detail);
+    live.textContent = "New results arrived from the latest check.";
+  });
+
   function refreshStatus() {
     refreshButton.disabled = true;
     panel.setAttribute("aria-busy", "true");
