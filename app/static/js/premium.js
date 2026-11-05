@@ -127,11 +127,6 @@
     var out = typed.closest(".hero-terminal") ? typed.closest(".hero-terminal").querySelector(".term-out") : null;
     if (out) out.style.setProperty("visibility", "hidden");
     setTimeout(function step() {
-      /* Wait for the boot intro (effects.js) to finish before typing. */
-      if (root.classList.contains("is-booting")) {
-        document.addEventListener("zyber:booted", function () { setTimeout(step, 400); }, { once: true });
-        return;
-      }
       i += 1;
       typed.textContent = text.slice(0, i);
       if (i < text.length) setTimeout(step, 45 + Math.random() * 55);
@@ -147,7 +142,7 @@
      values. Setting them on every card restyled whole tables on each move. */
   var glowSelector = ".glow-card, .panel, .summary li";
   var mouse = { x: 0, y: 0 }, pending = false, hovered = null;
-  var followers = document.querySelectorAll(".fx-spotlight, .fx-cursor");
+  var followers = document.querySelectorAll(".fx-spotlight");
   function paint() {
     pending = false;
     for (var f = 0; f < followers.length; f++) {
@@ -169,31 +164,4 @@
   }, { passive: true });
   document.addEventListener("pointerleave", function () { root.classList.remove("fx-pointer"); });
 
-  /* ---- Magnetic primary buttons ---- */
-  document.querySelectorAll("[data-magnetic], .page-heading .button.primary").forEach(function (btn) {
-    btn.addEventListener("pointermove", function (e) {
-      if (!isMouse(e)) return;
-      var r = btn.getBoundingClientRect();
-      var dx = e.clientX - (r.left + r.width / 2);
-      var dy = e.clientY - (r.top + r.height / 2);
-      btn.style.setProperty("transform", "translate(" + (dx * 0.25).toFixed(1) + "px," + (dy * 0.35).toFixed(1) + "px)");
-    });
-    btn.addEventListener("pointerleave", function () { btn.style.removeProperty("transform"); });
-  });
-
-  /* ---- 3D tilt on feature figures ---- */
-  document.querySelectorAll("[data-tilt]").forEach(function (card) {
-    card.addEventListener("pointermove", function (e) {
-      if (!isMouse(e)) return;
-      var r = card.getBoundingClientRect();
-      var px = (e.clientX - r.left) / r.width - 0.5;
-      var py = (e.clientY - r.top) / r.height - 0.5;
-      card.style.setProperty("--ry", (px * 7).toFixed(2) + "deg");
-      card.style.setProperty("--rx", (-py * 6).toFixed(2) + "deg");
-    });
-    card.addEventListener("pointerleave", function () {
-      card.style.setProperty("--ry", "0deg");
-      card.style.setProperty("--rx", "0deg");
-    });
-  });
 })();

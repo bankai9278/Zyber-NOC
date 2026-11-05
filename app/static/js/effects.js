@@ -1,6 +1,5 @@
-/* effects.js - boot intro, decrypt headlines, scroll story, hero network field,
-   living topology hover, app-page reveals, dashboard count-up, cursor ring and
-   optional interface sounds. No dependencies. Text changes use textContent and nodeValue only.
+/* effects.js - scroll story, hero network field, living topology hover,
+   app-page reveals, dashboard count-up, and optional interface sounds. No dependencies. Text changes use textContent and nodeValue only.
    Every moving effect is skipped when the user prefers reduced motion. */
 (function () {
   "use strict";
@@ -8,90 +7,6 @@
   /* premium.js adds motion-on when the visitor overrides reduced motion. */
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches && !root.classList.contains("motion-on");
   var each = function (list, fn) { Array.prototype.forEach.call(list, fn); };
-
-  /* ---- Boot intro: home page only, once per browser session, skippable ---- */
-  var booted = false;
-  function finishBoot() {
-    if (booted) return;
-    booted = true;
-    root.classList.remove("is-booting");
-    document.dispatchEvent(new CustomEvent("zyber:booted"));
-  }
-  (function boot() {
-    var box = document.getElementById("boot");
-    if (!box || reduce) { finishBoot(); return; }
-    var seen = true;
-    try {
-      seen = sessionStorage.getItem("zyber-boot-seen") === "1";
-      if (!seen) sessionStorage.setItem("zyber-boot-seen", "1");
-    } catch (err) {
-      seen = true; /* Storage blocked: skip rather than replay it on every page. */
-    }
-    if (seen) { finishBoot(); return; }
-
-    root.classList.add("is-booting");
-    box.hidden = false;
-    var lines = box.querySelectorAll(".boot-line");
-    var timers = [];
-    var done = false;
-    function close() {
-      if (done) return;
-      done = true;
-      timers.forEach(clearTimeout);
-      box.classList.add("is-leaving");
-      document.removeEventListener("keydown", close);
-      finishBoot();
-      setTimeout(function () { box.hidden = true; }, 500);
-    }
-    each(lines, function (line, index) {
-      timers.push(setTimeout(function () { line.classList.add("is-on"); }, 120 + index * 230));
-    });
-    timers.push(setTimeout(close, 120 + lines.length * 230 + 650));
-    box.addEventListener("click", close);
-    document.addEventListener("keydown", close);
-  })();
-
-  /* ---- Decrypt headlines: the real words stay in the HTML and in aria-label ---- */
-  var GLYPHS = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#/<>_=+";
-  function decrypt(heading) {
-    var nodes = [];
-    var walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) {
-      if (walker.currentNode.nodeValue.trim()) nodes.push({ node: walker.currentNode, text: walker.currentNode.nodeValue });
-    }
-    if (!nodes.length) return;
-    var hadLabel = heading.hasAttribute("aria-label");
-    if (!hadLabel) heading.setAttribute("aria-label", heading.textContent.replace(/\s+/g, " ").trim());
-    var total = nodes.reduce(function (sum, item) { return sum + item.text.length; }, 0);
-    var duration = Math.min(1100, 380 + total * 22);
-    var start = performance.now();
-    function frame(now) {
-      var t = Math.min(1, (now - start) / duration);
-      var settled = Math.floor(t * total);
-      var offset = 0;
-      nodes.forEach(function (item) {
-        var out = "";
-        for (var i = 0; i < item.text.length; i++) {
-          var ch = item.text.charAt(i);
-          out += (offset + i < settled || /\s/.test(ch)) ? ch : GLYPHS.charAt(Math.floor(Math.random() * GLYPHS.length));
-        }
-        item.node.nodeValue = out;
-        offset += item.text.length;
-      });
-      if (t < 1) requestAnimationFrame(frame);
-      else {
-        nodes.forEach(function (item) { item.node.nodeValue = item.text; });
-        if (!hadLabel) heading.removeAttribute("aria-label");
-      }
-    }
-    requestAnimationFrame(frame);
-  }
-  if (!reduce) {
-    var headings = document.querySelectorAll("main h1");
-    var runHeadings = function () { each(headings, function (h) { setTimeout(function () { decrypt(h); }, 150); }); };
-    if (booted) runHeadings();
-    else document.addEventListener("zyber:booted", runHeadings, { once: true });
-  }
 
   /* ---- Living topology: hover or focus a device to light its path to the root ---- */
   var topo = document.querySelector(".topology-svg");
@@ -124,31 +39,6 @@
       if (node) showPath(node);
     });
     topo.addEventListener("focusout", clearPath);
-  }
-
-  /* ---- 3D globe on the topology page: Three.js loads only when asked ---- */
-  var globePanel = document.querySelector("[data-globe-src]");
-  var hasWebGL = false;
-  try { hasWebGL = !!document.createElement("canvas").getContext("webgl2"); } catch (err) { hasWebGL = false; }
-  if (globePanel && topo && hasWebGL) {
-    globePanel.hidden = false;
-    var globeButton = globePanel.querySelector("[data-globe-toggle]");
-    var stage = globePanel.querySelector("[data-globe-stage]");
-    var globe = null;
-    globeButton.addEventListener("click", function () {
-      var open = stage.hidden;
-      stage.hidden = !open;
-      globeButton.setAttribute("aria-expanded", open ? "true" : "false");
-      globeButton.textContent = open ? "Hide 3D globe" : "Show 3D globe";
-      if (!open || globe) return;
-      globeButton.disabled = true;
-      import(globePanel.getAttribute("data-globe-src")).then(function (mod) {
-        globe = mod.mountGlobe(stage, topo, { reduce: reduce, lite: root.classList.contains("fx-lite") });
-        if (!globe) stage.textContent = "This browser could not start 3D graphics. The 2D map below shows the same devices.";
-      }).catch(function () {
-        stage.textContent = "The 3D globe could not load. The 2D map below shows the same devices.";
-      }).then(function () { globeButton.disabled = false; });
-    });
   }
 
   /* ---- Optional interface sounds: off by default, remembered per browser ---- */
@@ -426,10 +316,4 @@
     });
     each(document.querySelectorAll(".hero, .cta-band, .topology-wrap, .arch-figure"), function (el) { pio.observe(el); });
   }
-
-  /* ---- Cursor ring grows over links and buttons (position comes from premium.js) ---- */
-  document.addEventListener("pointerover", function (e) {
-    var hot = e.target.closest && e.target.closest("a, button, summary, select, input, textarea, label");
-    root.classList.toggle("fx-cursor-hot", !!hot);
-  }, { passive: true });
 })();

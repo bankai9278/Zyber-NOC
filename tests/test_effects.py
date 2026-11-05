@@ -1,4 +1,4 @@
-"""Design effects: CSP-safe assets, reduced motion, boot intro, living topology."""
+"""Design effects: CSP-safe assets, reduced motion, living topology."""
 
 import re
 
@@ -37,7 +37,7 @@ def test_every_page_loads_effects_after_premium(demo_client, path):
     assert html.index("css/premium.css") < html.index("css/effects.css")
     assert html.index("js/premium.js") < html.index("js/effects.js")
     assert '<div class="fx-texture" aria-hidden="true"></div>' in html
-    assert '<div class="fx-cursor" aria-hidden="true"></div>' in html
+    assert "fx-cursor" not in html
     assert "<script>" not in html
     assert " style=" not in html
     assert "<style" not in html
@@ -67,8 +67,7 @@ def test_effects_respect_reduced_motion():
         assert part in tail
     block = _css()[_css().index("Reduced motion: no transitions"):]
     assert "html:not(.motion-on) .topology-flow { animation: none !important; display: none; }" in block
-    assert "html:not(.motion-on) .boot { display: none !important; }" in block
-    assert "html:not(.motion-on) :is(.hero-field, .fx-cursor, .story-packet) { display: none !important; }" in block
+    assert "html:not(.motion-on) :is(.hero-field, .story-packet) { display: none !important; }" in block
     # Page transitions are skipped from script, because an at-rule cannot see a class.
     premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
     assert 'window.addEventListener("pageswap", skipTransition);' in premium
@@ -83,36 +82,6 @@ def test_texture_does_not_block_clicks_and_uses_a_local_image():
     assert re.search(r"\.fx-texture \{[^}]*pointer-events: none", css)
     assert 'url("../img/grain.svg")' in css
     assert "data:" not in css
-
-
-def test_cursor_ring_only_for_a_fine_pointer():
-    css = _css()
-    assert ".fx-cursor { display: none; }" in css
-    assert "@media (hover: hover) and (pointer: fine)" in css
-
-
-def test_boot_intro_is_hidden_skippable_and_once_per_session(demo_client):
-    html = demo_client.get("/").get_data(as_text=True)
-    assert 'id="boot" role="region" aria-label="Start-up intro" hidden>' in html
-    assert "data-boot-skip" in html
-    assert "read-only demo: no checks will run" in html
-    # The intro sits outside <main> so it can cover the header.
-    assert html.index('id="boot"') < html.index('<main id="content">')
-    script = _js()
-    assert 'sessionStorage.getItem("zyber-boot-seen")' in script
-    assert 'document.addEventListener("keydown", close);' in script
-
-
-def test_boot_intro_only_on_the_home_page(demo_client):
-    for path in ("/devices", "/topology", "/about"):
-        assert 'id="boot"' not in demo_client.get(path).get_data(as_text=True)
-
-
-def test_boot_intro_uses_saved_totals_in_normal_mode(client):
-    html = client.get("/").get_data(as_text=True)
-    assert "loading inventory: 0 saved devices" in html
-    assert "reading 0 saved results" in html
-    assert "serving on 127.0.0.1 only" in html
 
 
 def test_scroll_story_follows_one_ping_in_six_steps(demo_client):
@@ -207,7 +176,7 @@ def test_hero_field_adapts_to_slow_devices():
     assert "if (cap < 12) { running = false;" in script
 
 
-@pytest.mark.parametrize("name", ["three.module.min.js", "gsap.min.js", "ScrollTrigger.min.js", "three.LICENSE", "README.md"])
+@pytest.mark.parametrize("name", ["gsap.min.js", "ScrollTrigger.min.js", "README.md"])
 def test_vendored_libraries_are_served_from_this_site(demo_client, name):
     response = demo_client.get(f"/static/vendor/{name}")
     assert response.status_code == 200
@@ -215,24 +184,12 @@ def test_vendored_libraries_are_served_from_this_site(demo_client, name):
 
 
 def test_libraries_are_never_in_page_markup(demo_client):
-    # Three.js and GSAP load on demand from effects.js, never from a <script> tag
-    # in the page, so pages that do not use them never download them.
+    # GSAP loads on demand from effects.js, never from a <script> tag in the
+    # page, so pages that do not use it never download it.
     for path in PAGES:
         html = demo_client.get(path).get_data(as_text=True)
         assert "three.module" not in html and "gsap" not in html.lower()
         assert "cdn." not in html
-
-
-def test_globe_panel_is_hidden_until_script_finds_webgl(demo_client):
-    html = demo_client.get("/topology").get_data(as_text=True)
-    assert 'class="panel globe-panel" aria-label="3D globe" data-globe-src="/static/js/globe.js" hidden>' in html
-    assert "data-globe-stage hidden" in html
-    script = _js()
-    assert 'import(globePanel.getAttribute("data-globe-src"))' in script
-    globe = (STATIC / "js" / "globe.js").read_text(encoding="utf-8")
-    assert 'from "../vendor/three.module.min.js"' in globe
-    assert "innerHTML" not in globe
-    assert "var spin = reduce ? 0 :" in globe
 
 
 def test_gsap_runs_only_on_the_home_page_with_full_motion():
@@ -240,3 +197,19 @@ def test_gsap_runs_only_on_the_home_page_with_full_motion():
     gsap_block = script[script.index("GSAP scroll scenes"):]
     assert script.index("if (reduce) return;") < script.index("GSAP scroll scenes")
     assert 'document.body.classList.contains("page-home") && !root.classList.contains("fx-lite")' in gsap_block
+
+
+def test_removed_effects_stay_gone(demo_client):
+    # The boot intro, headline scramble, cursor ring, magnetic buttons, card
+    # tilt, and 3D globe were removed on purpose to keep the site calm.
+    for path in PAGES:
+        html = demo_client.get(path).get_data(as_text=True)
+        for marker in ('id="boot"', "fx-cursor", "data-magnetic", "data-tilt", "globe"):
+            assert marker not in html, (path, marker)
+    script = _js()
+    for marker in ("zyber-boot-seen", "decrypt(", "GLYPHS", "fx-cursor-hot", "globe"):
+        assert marker not in script
+    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
+    assert "Magnetic" not in premium and "data-tilt" not in premium and "is-booting" not in premium
+    for gone in ("js/globe.js", "vendor/three.module.min.js", "vendor/three.LICENSE"):
+        assert not (STATIC / gone).exists(), gone

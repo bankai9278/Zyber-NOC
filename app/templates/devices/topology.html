@@ -20,13 +20,6 @@
       <p>Add devices and set parent devices to build the map.</p>
     </section>
   {% else %}
-    <section class="panel globe-panel" aria-label="3D globe" data-globe-src="{{ url_for('static', filename='js/globe.js') }}" hidden>
-      <div class="globe-head">
-        <p class="globe-note">The same saved devices on a globe: roots at the top, each level of the tree further down. Drag to turn it, and click a device to open it.</p>
-        <button type="button" class="globe-toggle" data-globe-toggle aria-expanded="false">Show 3D globe</button>
-      </div>
-      <div class="globe-stage" data-globe-stage hidden></div>
-    </section>
     <section class="panel topology-panel" aria-label="Device topology"{% if not demo_mode %} data-live-url="{{ url_for('devices.dashboard_data') }}" data-live-latest="{{ last_updated_at or '' }}"{% endif %}>
       <div class="topology-wrap">
         <svg class="topology-svg" viewBox="0 0 {{ topology.width }} {{ topology.height }}" width="{{ topology.width }}" height="{{ topology.height }}" role="img" aria-labelledby="topology-title">

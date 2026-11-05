@@ -5,25 +5,6 @@
 {% block brand_tagline %}<p class="brand-tagline">Network operations centre, built from ping to topology.</p>{% endblock %}
 {% block body_class %}page-site page-home{% endblock %}
 
-{% block overlay %}
-{# Start-up intro. Hidden in the HTML; effects.js shows it once per browser session
-   and only when motion is allowed. Every line is built from saved totals. #}
-<div class="boot" id="boot" role="region" aria-label="Start-up intro" hidden>
-  <div class="boot-screen mono">
-    <p class="boot-line"><span class="boot-ok">[ ok ]</span> starting zyber noc console</p>
-    <p class="boot-line"><span class="boot-ok">[ ok ]</span> opening {% if demo_mode %}sample database{% else %}local sqlite database{% endif %}</p>
-    <p class="boot-line"><span class="boot-ok">[ ok ]</span> loading inventory: {{ summary.total }} saved {{ "device" if summary.total == 1 else "devices" }}</p>
-    <p class="boot-line"><span class="boot-ok">[ ok ]</span> reading {{ totals.checks }} saved {{ "result" if totals.checks == 1 else "results" }}</p>
-    {% if demo_mode %}
-    <p class="boot-line"><span class="boot-warn">[ -- ]</span> read-only demo: no checks will run</p>
-    {% else %}
-    <p class="boot-line"><span class="boot-ok">[ ok ]</span> serving on 127.0.0.1 only</p>
-    {% endif %}
-    <p class="boot-line boot-ready">ready<span class="caret" aria-hidden="true"></span></p>
-    <button type="button" class="boot-skip" data-boot-skip>Skip intro</button>
-  </div>
-</div>
-{% endblock %}
 
 {% block content %}
 <section class="hero" aria-labelledby="hero-title">
@@ -47,8 +28,8 @@
         {% endif %}
       </div>
       <div class="hero-actions" data-reveal>
-        <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open dashboard</a>
-        <a class="button ghost" data-magnetic href="{{ url_for('site.reports') }}">View reports</a>
+        <a class="button primary" href="{{ url_for('devices.inventory') }}">Open dashboard</a>
+        <a class="button ghost" href="{{ url_for('site.reports') }}">View reports</a>
       </div>
     </div>
     <div class="hero-art" data-reveal>
@@ -193,7 +174,7 @@
     ] %}
     {% for img, img_h, name, text, href, cta in features %}
       <article class="feature {% if loop.index is even %}feature-flip{% endif %}">
-        <figure class="feature-figure" data-tilt data-reveal>
+        <figure class="feature-figure" data-reveal>
           <div class="browser-bar" aria-hidden="true"><span></span><span></span><span></span><em class="mono">127.0.0.1:5000</em></div>
           <img src="{{ url_for('static', filename='img/' ~ img) }}" alt="Screenshot of the {{ name | lower }} page" loading="lazy" width="1440" height="{{ img_h }}">
         </figure>
@@ -238,17 +219,17 @@
     {% if demo_mode %}
     <p>This copy is a read-only demo. Run the app on your own PC to add devices and run checks.</p>
     <div class="hero-actions">
-      <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open the sample dashboard</a>
+      <a class="button primary" href="{{ url_for('devices.inventory') }}">Open the sample dashboard</a>
     {% elif can_edit %}
     <p>Add a device, run a check, and watch the record build.</p>
     <div class="hero-actions">
-      <a class="button primary" data-magnetic href="{{ url_for('devices.new_device') }}">Add a device</a>
+      <a class="button primary" href="{{ url_for('devices.new_device') }}">Add a device</a>
     {% else %}
     <p>Live results from a home network, checked by a small agent and saved here.</p>
     <div class="hero-actions">
-      <a class="button primary" data-magnetic href="{{ url_for('devices.inventory') }}">Open the dashboard</a>
+      <a class="button primary" href="{{ url_for('devices.inventory') }}">Open the dashboard</a>
     {% endif %}
-      <a class="button ghost" data-magnetic href="{{ url_for('site.about') }}">Read the story</a>
+      <a class="button ghost" href="{{ url_for('site.about') }}">Read the story</a>
     </div>
   </div>
 </section>

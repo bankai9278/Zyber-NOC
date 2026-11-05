@@ -1,6 +1,6 @@
 /* ==========================================================================
    effects.css - the design pass: page transitions, texture, living topology,
-   boot intro, scroll story, hero field, cursor ring and the sound toggle.
+   scroll story, hero field, live pulse, and the sound toggle.
    Loads after premium.css. No external assets. Every moving part is switched
    off in the reduced-motion block at the end of this file.
    ========================================================================== */
@@ -54,25 +54,6 @@
 .topology-svg .topo-node:focus-visible { outline: none; }
 .topology-svg .topo-node:focus-visible rect:not(.topo-halo) { stroke: var(--heading); stroke-width: 3px; }
 .topology-note { margin: .75rem 0 0; color: var(--muted); font-size: .8rem; }
-
-/* ---------- Boot intro (home page, once per session) ---------- */
-.boot {
-  position: fixed; inset: 0; z-index: 70;
-  display: flex; align-items: center; justify-content: center;
-  background: #040706;
-  transition: opacity .45s var(--ease), visibility .45s;
-}
-.boot[hidden] { display: none; }
-.boot.is-leaving { opacity: 0; visibility: hidden; }
-.boot-screen { width: min(34rem, calc(100vw - 2rem)); color: var(--text); font-size: .9rem; line-height: 1.7; }
-.boot-line { margin: 0; opacity: 0; transform: translateY(4px); transition: opacity .18s ease, transform .18s ease; }
-.boot-line.is-on { opacity: 1; transform: none; }
-.boot-ok { color: var(--mint); }
-.boot-warn { color: var(--error); }
-.boot-ready { margin-top: .5rem; color: var(--heading); }
-.boot-skip { margin-top: 1.5rem; }
-/* Hold the hero back until the intro fades, then let it reveal. */
-html.is-booting .hero [data-reveal].is-visible { opacity: 0; transform: translateY(26px); filter: blur(4px); }
 
 /* ---------- Scroll story on the home page ---------- */
 .story-lede { margin: -1.5rem 0 2.5rem; max-width: 40rem; color: #a3b5ad; }
@@ -163,41 +144,10 @@ html.fx-story .story-step.is-active { border-color: rgba(62, 240, 165, .4); }
 .hero-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; opacity: .7; }
 html.fx-field .hero-field { display: block; }
 
-/* ---------- Cursor ring (mouse and pen only) ---------- */
-.fx-cursor { display: none; }
-@media (hover: hover) and (pointer: fine) {
-  .fx-cursor {
-    display: block; position: fixed; left: 0; top: 0; z-index: 80; pointer-events: none;
-    width: 30px; height: 30px; margin: -15px 0 0 -15px;
-    border: 1px solid rgba(62, 240, 165, .55); border-radius: 50%;
-    box-shadow: 0 0 12px rgba(62, 240, 165, .25);
-    transform: translate3d(var(--mx), var(--my), 0);
-    opacity: 0; transition: opacity .25s ease, width .2s var(--ease), height .2s var(--ease), margin .2s var(--ease), border-color .2s;
-  }
-  .fx-cursor::before, .fx-cursor::after {
-    content: ""; position: absolute; left: 50%; top: 50%; background: rgba(62, 240, 165, .7);
-  }
-  .fx-cursor::before { width: 1px; height: 8px; margin: -4px 0 0 -.5px; }
-  .fx-cursor::after { width: 8px; height: 1px; margin: -.5px 0 0 -4px; }
-  html.fx-pointer .fx-cursor { opacity: 1; }
-  html.fx-cursor-hot .fx-cursor { width: 44px; height: 44px; margin: -22px 0 0 -22px; border-color: var(--mint); }
-}
-
 /* ---------- Interface sound toggle (footer, off by default) ---------- */
 .footer-sound { margin: .75rem 0 0; }
 .sound-toggle { padding: .25rem .65rem; font-size: .75rem; }
 .sound-toggle[aria-pressed="true"] { color: var(--mint); border-color: var(--mint); }
-
-/* ---------- 3D globe (topology page, globe.js) ---------- */
-.globe-panel[hidden], .globe-stage[hidden] { display: none; }
-.globe-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-.globe-note { margin: 0; color: var(--muted); font-size: .85rem; max-width: 46rem; }
-.globe-stage { position: relative; margin-top: 1rem; border-radius: var(--radius); background: radial-gradient(60% 70% at 50% 45%, rgba(62, 240, 165, .08), transparent 70%), var(--inset); overflow: hidden; }
-.globe-canvas { display: block; width: 100%; cursor: grab; touch-action: pan-y; }
-.globe-canvas:active { cursor: grabbing; }
-.globe-canvas.is-hot { cursor: pointer; }
-.globe-tip { position: absolute; left: 0; top: 0; margin: 0; padding: .25rem .5rem; pointer-events: none; font-size: .75rem; color: var(--heading); background: var(--panel); border: 1px solid var(--button-border-hover); border-radius: var(--radius); white-space: nowrap; }
-.globe-tip[hidden] { display: none; }
 
 /* GSAP drives these on the home page; their CSS reveal must not fight it. */
 html.fx-gsap .hero-grid, html.fx-gsap .cta-inner, html.fx-gsap .stack-grid { will-change: transform; }
@@ -225,7 +175,6 @@ html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba
   .story-rail { left: .9rem; }
   .story-step > .story-dot { left: -2.05rem; }
   .story-lede { margin-top: -.75rem; margin-bottom: 1.5rem; }
-  .boot-screen { font-size: .82rem; }
   .fx-texture { opacity: .35; }
 }
 
@@ -235,9 +184,7 @@ html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba
 @media (prefers-reduced-motion: reduce) {
   html:not(.motion-on) .topology-flow { animation: none !important; display: none; }
   html:not(.motion-on) .topology-svg rect.topo-halo { animation: none !important; opacity: .6; transform: none; }
-  html:not(.motion-on) .boot { display: none !important; }
-  html.is-booting:not(.motion-on) .hero [data-reveal].is-visible { opacity: 1; transform: none; filter: none; }
-  html:not(.motion-on) :is(.hero-field, .fx-cursor, .story-packet) { display: none !important; }
+  html:not(.motion-on) :is(.hero-field, .story-packet) { display: none !important; }
   html:not(.motion-on) .topology-svg .live-ring { display: none; animation: none !important; }
   html:not(.motion-on) .status.live-ping::after { display: none; animation: none !important; }
   html:not(.motion-on) .live-light.live-live .live-dot { animation: none; }

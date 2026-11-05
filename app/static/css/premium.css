@@ -85,7 +85,6 @@ html.is-scrolled .page-home .header-inner {
 /* ---------- Buttons ---------- */
 .button.ghost { background: transparent; border-color: var(--button-border); color: var(--text); }
 .button.ghost:hover { border-color: var(--mint); color: var(--mint-2); box-shadow: 0 0 0 3px var(--mint-soft); }
-[data-magnetic] { transition: transform .25s var(--ease), background .15s, color .15s, box-shadow .2s; will-change: transform; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
 .hero-actions .button { padding: .8rem 1.25rem; font-size: .9rem; }
 
@@ -226,11 +225,10 @@ code { font-family: var(--font-mono); font-size: .85em; color: var(--mint-2); ba
 .feature-figure {
   margin: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: #0a0f0e;
   box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 1px rgba(62, 240, 165, .05);
-  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
   transition: transform .4s var(--ease), box-shadow .4s var(--ease);
 }
-html.fx-js .feature-figure[data-reveal] { transform: perspective(1100px) translateY(26px); }
-html.fx-js .feature-figure[data-reveal].is-visible { transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+html.fx-js .feature-figure[data-reveal] { transform: translateY(26px); }
+html.fx-js .feature-figure[data-reveal].is-visible { transform: none; }
 .feature-figure:hover { box-shadow: 0 40px 90px rgba(0, 0, 0, .6), 0 0 0 1px rgba(62, 240, 165, .35), 0 0 60px rgba(62, 240, 165, .12); }
 .feature-figure img { display: block; width: 100%; height: auto; }
 .browser-bar { display: flex; align-items: center; gap: .4rem; padding: .55rem .8rem; border-bottom: 1px solid var(--border); background: #0d1312; }
@@ -399,7 +397,7 @@ html.fx-js .donut-ok { stroke-dashoffset: var(--donut-from, 0); transition: stro
   html.fx-js:not(.motion-on) [data-reveal] { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
   html:not(.motion-on) :is(.hero-mesh, .cta-mesh, .net-pulses path, .arch-pulses path, .node-led, .node-halo, .caret, .scroll-cue span, .chip-offline) { animation: none !important; }
   html:not(.motion-on) :is(.net-pulses, .arch-pulses) { display: none; }
-  html:not(.motion-on) :is(.feature-figure, [data-magnetic]) { transform: none !important; }
+  html:not(.motion-on) .feature-figure { transform: none !important; }
   html:not(.motion-on) *, html:not(.motion-on) *::before, html:not(.motion-on) *::after { transition-duration: 0s !important; scroll-behavior: auto !important; }
 }
 .panel:has(> .summary)::before { display: none; }
