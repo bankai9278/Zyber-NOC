@@ -1,5 +1,5 @@
 /* ==========================================================================
-   premium.css - motion, cursor effects and the public site pages.
+   site.css - motion, cursor effects and the public site pages.
    Loads after style.css and theme-terminal.css. No external assets.
    ========================================================================== */
 :root {
@@ -390,7 +390,7 @@ html.fx-js .donut-ok { stroke-dashoffset: var(--donut-from, 0); transition: stro
 }
 
 /* ---------- Reduced motion: everything static and visible ----------
-   html.motion-on is set by premium.js when the visitor turns motion on in the
+   html.motion-on is set by site.js when the visitor turns motion on in the
    footer, so each rule here is skipped for them. */
 @media (prefers-reduced-motion: reduce) {
   html:not(.motion-on) .fx-spotlight { display: none; }

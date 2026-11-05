@@ -1,4 +1,4 @@
-"""Phone layout: one CSS section in premium.css, swipe hints on wide diagrams."""
+"""Phone layout: one CSS section in site.css, swipe hints on wide diagrams."""
 
 import re
 
@@ -23,7 +23,7 @@ def demo_client(tmp_path):
 
 
 def _phone_css():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     start = css.index("Phone layout")
     block = css[start:]
     assert "@media (max-width: 42rem)" in block
@@ -38,8 +38,8 @@ def test_every_page_sets_the_phone_viewport(demo_client, path):
     assert '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' in html
 
 
-def test_phone_css_is_the_last_section_of_premium_css():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+def test_phone_css_is_the_last_section_of_site_css():
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     # Loaded last so its rules win over the desktop layout above it.
     assert css.rindex("@media (max-width: 42rem)") > css.index(".tour {")
 
@@ -80,7 +80,7 @@ def test_phone_css_adds_no_motion():
 
 
 def test_scroll_hint_is_hidden_outside_the_phone_layout():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     phone_start = css.index("@media (max-width: 42rem)", css.index("Phone layout"))
     assert ".scroll-hint { display: none; }" in css[:phone_start]
 
@@ -122,5 +122,5 @@ def test_dashboard_refresh_keeps_view_links_in_demo():
 def test_table_wrap_contains_its_hidden_labels():
     # Absolute visually-hidden labels must not escape the table's scroll box,
     # or the page gets a sideways scrollbar between phone and desktop widths.
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     assert ".table-wrap { position: relative; }" in css

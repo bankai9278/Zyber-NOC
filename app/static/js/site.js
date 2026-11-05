@@ -1,4 +1,4 @@
-/* premium.js - cursor, scroll and reveal effects. No dependencies.
+/* site.js - cursor, scroll and reveal effects. No dependencies.
    Every effect is skipped when the user prefers reduced motion. */
 (function () {
   "use strict";

@@ -4,7 +4,7 @@
 (function () {
   "use strict";
   var root = document.documentElement;
-  /* premium.js adds motion-on when the visitor overrides reduced motion. */
+  /* site.js adds motion-on when the visitor overrides reduced motion. */
   var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches && !root.classList.contains("motion-on");
   var each = function (list, fn) { Array.prototype.forEach.call(list, fn); };
 

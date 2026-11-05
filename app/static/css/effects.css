@@ -1,7 +1,7 @@
 /* ==========================================================================
    effects.css - the design pass: page transitions, texture, living topology,
    scroll story, hero field, live pulse, and the sound toggle.
-   Loads after premium.css. No external assets. Every moving part is switched
+   Loads after site.css. No external assets. Every moving part is switched
    off in the reduced-motion block at the end of this file.
    ========================================================================== */
 
@@ -157,7 +157,7 @@ html.fx-gsap .feature-figure { overflow: hidden; }
 /* ---------- Pause loops that are off screen (effects.js toggles .fx-paused) ---------- */
 .fx-paused *, .fx-paused *::before, .fx-paused *::after { animation-play-state: paused !important; }
 
-/* ---------- Lite mode (premium.js adds .fx-lite on touch, slow or data-saver devices) ----------
+/* ---------- Lite mode (site.js adds .fx-lite on touch, slow or data-saver devices) ----------
    Glows drawn with filter: drop-shadow are repainted on every animation frame,
    which is the main cost on a phone. Lite mode keeps the motion and drops them. */
 html.fx-lite :is(.net-pulses path, .node-led, .topology-svg rect) { filter: none; }
@@ -179,7 +179,7 @@ html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba
 }
 
 /* ---------- Reduced motion: no transitions, no loops, no intro ---------- */
-/* Page transitions under reduced motion are skipped by premium.js
+/* Page transitions under reduced motion are skipped by site.js
    (pagereveal), because an at-rule cannot check the motion-on class. */
 @media (prefers-reduced-motion: reduce) {
   html:not(.motion-on) .topology-flow { animation: none !important; display: none; }

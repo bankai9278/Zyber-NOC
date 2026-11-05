@@ -40,7 +40,7 @@ flowchart TD
 | `app/presentation.py` | Turns saved values into labels, Toronto times, the topology map, the latency chart, and the status bars |
 | `app/csrf.py` | Checks the form token on submissions that change data |
 | `app/templates/` | Server-rendered HTML, including `app/templates/site/` for home, reports, and about |
-| `app/static/` | `style.css`, `theme-terminal.css`, `premium.css`, `effects.css`, the dashboard and form scripts, `premium.js`, `effects.js`, the `grain.svg` texture, the `logo-yo.svg` initials logo (also the favicon), the older `favicon.svg`, and three static page images |
+| `app/static/` | `style.css`, `theme-terminal.css`, `site.css`, `effects.css`, the dashboard and form scripts, `site.js`, `effects.js`, the `grain.svg` texture, the `logo-yo.svg` initials logo (also the favicon), the older `favicon.svg`, and three static page images |
 
 The main tables are these (SNMP polls and interfaces have their own two tables):
 
@@ -56,7 +56,7 @@ The main tables are these (SNMP polls and interfaces have their own two tables):
 | Python 3.11 or newer | The application, database access, IP validation, ping command, and TCP connection are all Python. SQLite, subprocess, sockets, and time zones come with Python. |
 | Flask 3.1.3 | Serves the local pages and forms without a separate frontend application. |
 | SQLite | Stores the inventory and check history in one file on this PC. No database server is required. |
-| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `premium.css` is the home, reports, and about layout. `effects.css` loads last and holds the page transitions, texture, topology animation, live pulse, and scroll story. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. GSAP is vendored in `app/static/vendor/` and loads only on the home page. |
+| HTML, CSS, and JavaScript | Pages are server-rendered. `style.css` holds the layout. `theme-terminal.css` is the Cyber terminal theme. `site.css` is the home, reports, and about layout. `effects.css` loads last and holds the page transitions, texture, topology animation, live pulse, and scroll story. JavaScript refreshes saved results, shows a loading label, and runs the page effects. Those effects do not run when reduced motion is on. There is no framework and no CDN. GSAP is vendored in `app/static/vendor/` and loads only on the home page. |
 | pytest 9.1.1 | Runs automated tests. Ping tests use stand-in command output, and TCP tests use a stand-in socket, so the test run does not send real network traffic. |
 
 Flask also installs its required libraries, including Werkzeug and Jinja2. Those are not listed separately in `requirements.txt`.

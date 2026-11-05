@@ -45,10 +45,10 @@ def test_about_page_renders(client):
     assert "One request, end to end." in response.get_data(as_text=True)
 
 
-def test_site_pages_load_premium_assets_without_inline_script(client):
+def test_site_pages_load_site_assets_without_inline_script(client):
     html = client.get("/").get_data(as_text=True)
-    assert "js/premium.js" in html
-    assert "css/premium.css" in html
+    assert "js/site.js" in html
+    assert "css/site.css" in html
     assert "<script>" not in html
     assert " style=" not in html
 

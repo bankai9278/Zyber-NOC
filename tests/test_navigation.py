@@ -85,7 +85,7 @@ def test_local_app_shows_add_device_and_no_sign_in(client):
 
 
 def test_phone_css_swaps_the_menus_and_leaves_room():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     assert ".tab-bar { display: none; }" in css
     block = css[css.index("/* ---------- Phone tab bar ----------"):]
     assert ".site-header nav { display: none; }" in block

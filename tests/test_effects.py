@@ -32,10 +32,10 @@ def _js():
 
 
 @pytest.mark.parametrize("path", PAGES)
-def test_every_page_loads_effects_after_premium(demo_client, path):
+def test_every_page_loads_effects_after_site(demo_client, path):
     html = demo_client.get(path).get_data(as_text=True)
-    assert html.index("css/premium.css") < html.index("css/effects.css")
-    assert html.index("js/premium.js") < html.index("js/effects.js")
+    assert html.index("css/site.css") < html.index("css/effects.css")
+    assert html.index("js/site.js") < html.index("js/effects.js")
     assert '<div class="fx-texture" aria-hidden="true"></div>' in html
     assert "fx-cursor" not in html
     assert "<script>" not in html
@@ -69,8 +69,8 @@ def test_effects_respect_reduced_motion():
     assert "html:not(.motion-on) .topology-flow { animation: none !important; display: none; }" in block
     assert "html:not(.motion-on) :is(.hero-field, .story-packet) { display: none !important; }" in block
     # Page transitions are skipped from script, because an at-rule cannot see a class.
-    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
-    assert 'window.addEventListener("pageswap", skipTransition);' in premium
+    site_js = (STATIC / "js" / "site.js").read_text(encoding="utf-8")
+    assert 'window.addEventListener("pageswap", skipTransition);' in site_js
 
 
 def test_page_transitions_use_css_only():
@@ -130,16 +130,16 @@ def test_demo_topology_animates_only_online_links_and_pulses_offline(demo_client
 def test_motion_switch_is_hidden_until_the_system_asks_for_reduced_motion(demo_client):
     html = demo_client.get("/").get_data(as_text=True)
     assert 'data-motion-toggle aria-pressed="false" hidden>Animations: off (system setting)</button>' in html
-    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
-    assert 'if (motionToggle && systemReduce) {' in premium
-    assert 'localStorage.getItem("zyber-motion") === "on"' in premium
-    assert 'if (systemReduce && motionOn) root.classList.add("motion-on");' in premium
+    site_js = (STATIC / "js" / "site.js").read_text(encoding="utf-8")
+    assert 'if (motionToggle && systemReduce) {' in site_js
+    assert 'localStorage.getItem("zyber-motion") === "on"' in site_js
+    assert 'if (systemReduce && motionOn) root.classList.add("motion-on");' in site_js
 
 
 def test_every_reduced_motion_rule_yields_to_the_motion_switch():
     # Each rule inside a reduced-motion block must be scoped to html:not(.motion-on),
     # so the footer switch can turn motion back on.
-    for name in ("style.css", "theme-terminal.css", "premium.css", "effects.css"):
+    for name in ("style.css", "theme-terminal.css", "site.css", "effects.css"):
         css = (STATIC / "css" / name).read_text(encoding="utf-8")
         for match in re.finditer(r"@media \(prefers-reduced-motion: reduce\) \{", css):
             depth, i = 1, match.end()
@@ -154,16 +154,16 @@ def test_every_reduced_motion_rule_yields_to_the_motion_switch():
 def test_scripts_never_set_custom_properties_on_the_root():
     # A custom property on <html> makes the browser restyle the whole page.
     # Scroll and mouse values go on the element that uses them instead.
-    for name in ("premium.js", "effects.js"):
+    for name in ("site.js", "effects.js"):
         script = (STATIC / "js" / name).read_text(encoding="utf-8")
         assert "root.style.setProperty" not in script, name
         assert "documentElement.style" not in script, name
 
 
 def test_lite_mode_and_off_screen_pausing():
-    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
-    assert 'root.classList.add("fx-lite");' in premium
-    assert '(pointer: coarse)' in premium and "saveData" in premium
+    site_js = (STATIC / "js" / "site.js").read_text(encoding="utf-8")
+    assert 'root.classList.add("fx-lite");' in site_js
+    assert '(pointer: coarse)' in site_js and "saveData" in site_js
     css = _css()
     assert "html.fx-lite :is(.net-pulses path, .node-led, .topology-svg rect) { filter: none; }" in css
     assert ".fx-paused *, .fx-paused *::before, .fx-paused *::after { animation-play-state: paused !important; }" in css
@@ -209,7 +209,7 @@ def test_removed_effects_stay_gone(demo_client):
     script = _js()
     for marker in ("zyber-boot-seen", "decrypt(", "GLYPHS", "fx-cursor-hot", "globe"):
         assert marker not in script
-    premium = (STATIC / "js" / "premium.js").read_text(encoding="utf-8")
-    assert "Magnetic" not in premium and "data-tilt" not in premium and "is-booting" not in premium
+    site_js = (STATIC / "js" / "site.js").read_text(encoding="utf-8")
+    assert "Magnetic" not in site_js and "data-tilt" not in site_js and "is-booting" not in site_js
     for gone in ("js/globe.js", "vendor/three.module.min.js", "vendor/three.LICENSE"):
         assert not (STATIC / gone).exists(), gone

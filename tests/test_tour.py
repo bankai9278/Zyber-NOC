@@ -63,7 +63,7 @@ def test_tour_script_avoids_inline_styles_and_html_injection():
 
 
 def test_tour_animation_is_off_under_reduced_motion():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     tail = css[css.index("Demo-only \"How it works\" tour"):]
     assert "@media (prefers-reduced-motion: reduce)" in tail
     assert ".tour-animate { animation: none; }" in tail

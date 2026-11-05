@@ -133,7 +133,7 @@ def test_font_file_and_license_are_bundled():
 
 
 def test_font_face_is_local_and_swaps():
-    css = (STATIC / "css" / "premium.css").read_text(encoding="utf-8")
+    css = (STATIC / "css" / "site.css").read_text(encoding="utf-8")
     block = css[css.index("@font-face"):]
     block = block[:block.index("}") + 1]
     assert 'url("../fonts/space-grotesk-wght.woff2") format("woff2")' in block
