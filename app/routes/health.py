@@ -10,5 +10,5 @@ def health():
     """Return JSON that a person or a test can use to confirm the app is up."""
     return {
         "status": "ok",
-        "application": "network-monitoring-dashboard",
+        "application": "zyber-noc",
     }

@@ -9,4 +9,4 @@ def test_health_route_reports_the_app_is_running(client):
 
     body = response.get_json()
     assert body["status"] == "ok"
-    assert body["application"] == "network-monitoring-dashboard"
+    assert body["application"] == "zyber-noc"

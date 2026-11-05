@@ -44,15 +44,14 @@
 
 **Look and feel**
 
-- A Cyber terminal theme (`app/static/css/theme-terminal.css`, loaded after `style.css`). Headings use Space Grotesk, served from `app/static/fonts/` (never a font CDN); body text and labels use system fonts and Cascadia Mono.
-- **Follow a ping** on the home page: as you scroll, a packet travels from this PC through the router to a device and back, while six short steps explain the echo request, TTL, the echo reply, latency, median and jitter, timeouts and packet loss, and how the result is saved. The last step shows the newest saved check (name, status, response time, and how long ago; never an address), or says plainly that nothing has been checked yet. Without motion it stays a readable list.
-- A home page at `/` with saved totals, a 30-day report at `/reports`, and an about page at `/about`. Numbers on those pages come only from saved rows. The animations in `site.js` and `effects.js` stay off when the system asks for reduced motion, unless the visitor turns them on with the footer switch. On desktop with full motion, the home page adds GSAP scroll scenes.
-- The about page is my own write-up: why I built this, the Mohawk College team project it grew from (NETTRIO, a network design proposal for Skyline Paralegal), a diagram of that core, distribution, and access design, my skills, and what I plan next. Planned items, such as certifications, are listed as goals, not as done.
-- My `YO` initials logo (`app/static/img/logo-yo.svg`) is the favicon, sits next to ZYBER NOC in the header and footer, and appears larger on the about page.
+- A dark terminal theme with mint accents. Headings use Space Grotesk, served from this site.
+- **Follow a ping** on the home page walks one ping from this PC through the router to a device and back, and ends with the newest real check.
+- My `YO` initials logo is the favicon and sits next to ZYBER NOC in the header.
+- Animations turn off when the system asks for reduced motion; a footer switch turns them back on.
 
 ## Networking concepts
 
-These are the network support ideas I practised while building it:
+These are the network support ideas I practised while building it. On my home network every device came back with almost the same tiny response time, which is what made me look at hops and latency properly.
 
 - **Authorized inventory.** A technician monitors devices they are allowed to check. The app pings only addresses that were added to the inventory. It does not scan an IP range or accept a hostname.
 - **ICMP echo.** **Check now** uses Windows `ping`, which sends five ICMP echo requests and waits for echo replies. A reply makes the device **Online**. No reply before the timeout makes it **Offline**.

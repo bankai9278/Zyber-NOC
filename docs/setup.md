@@ -45,7 +45,7 @@ Confirm the process is running:
 The health check returns:
 
 ```json
-{"application": "network-monitoring-dashboard", "status": "ok"}
+{"application": "zyber-noc", "status": "ok"}
 ```
 
 ## Run the tests
