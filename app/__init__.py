@@ -1,5 +1,6 @@
 """Application factory for the network monitoring dashboard."""
 
+import mimetypes
 import secrets
 
 from flask import Flask, render_template, request
@@ -16,6 +17,11 @@ from app.routes.devices import bp as devices_bp
 from app.routes.devices import start_scheduled_checks
 from app.routes.health import bp as health_bp
 from app.routes.site import bp as site_bp
+
+# Older Pythons, and some servers, do not know these types, and browsers
+# expect them for fonts and the web app manifest.
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 # Pages that only exist to change data. Demo mode refuses them even on GET.
 DEMO_BLOCKED_ENDPOINTS = frozenset(

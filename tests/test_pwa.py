@@ -3,6 +3,7 @@
 import json
 import re
 import struct
+import zlib
 
 import pytest
 
@@ -48,10 +49,29 @@ def test_manifest_icons_exist_with_the_right_sizes(client):
     assert any(icon["purpose"] == "maskable" for icon in manifest["icons"])
 
 
+def _png_pixels(data):
+    """Decode the image data of an 8-bit RGB PNG with no filtering, as make_icons writes it.
+
+    Compressed bytes differ between zlib builds (Python 3.14+ on Windows
+    uses zlib-ng), so the test compares pixels, not file bytes.
+    """
+    chunks = b""
+    position = 8
+    while position < len(data):
+        length = struct.unpack(">I", data[position:position + 4])[0]
+        kind = data[position + 4:position + 8]
+        if kind == b"IDAT":
+            chunks += data[position + 8:position + 8 + length]
+        position += 12 + length
+    return zlib.decompress(chunks)
+
+
 def test_icons_match_the_generator():
     for size in make_icons.SIZES:
         path = STATIC / "img" / f"icon-{size}.png"
-        assert path.read_bytes() == make_icons.png_bytes(make_icons.icon_pixels(size)), path
+        expected = make_icons.png_bytes(make_icons.icon_pixels(size))
+        assert _png_size(path) == (size, size)
+        assert _png_pixels(path.read_bytes()) == _png_pixels(expected), path
 
 
 def test_every_page_links_the_manifest_and_registers_from_a_file(client):
