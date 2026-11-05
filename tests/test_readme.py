@@ -9,7 +9,7 @@ README = PROJECT_ROOT / "README.md"
 
 def _top_section():
     text = README.read_text(encoding="utf-8")
-    return text.split("## Features", 1)[0]
+    return text.split("## Key features", 1)[0]
 
 
 def test_readme_links_the_live_demo():
@@ -27,3 +27,19 @@ def test_readme_screenshots_exist_and_are_png():
 
 def test_readme_says_screenshots_are_sample_data():
     assert "sample data" in _top_section()
+
+
+def test_readme_is_honest_about_how_it_was_built():
+    assert "Built with help from AI coding tools. I planned the features, tested them, and can explain how each part works." in _top_section()
+
+
+def test_readme_stays_short_and_links_the_docs():
+    text = README.read_text(encoding="utf-8")
+    assert len(text.splitlines()) < 90
+    for heading in ("## Why I built it", "## What I learned", "## What was hard"):
+        assert heading in text
+    links = re.findall(r"\]\((docs/[a-z]+\.md)\)", text)
+    assert len(links) == 5
+    for relative in links:
+        assert (PROJECT_ROOT / relative).is_file(), relative
+

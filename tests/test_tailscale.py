@@ -21,7 +21,8 @@ def test_tailscale_hostnames_are_refused(app, hostname):
 def test_readme_warns_against_funnel_and_explains_serve():
     from app.config import PROJECT_ROOT
 
-    readme = (PROJECT_ROOT / "README.md").read_text(encoding="utf-8")
+    # The setup guide moved from README.md to docs/setup.md.
+    readme = (PROJECT_ROOT / "docs" / "setup.md").read_text(encoding="utf-8")
     assert "tailscale serve --bg 5000" in readme
     assert "**Never use `tailscale funnel`.**" in readme
     assert "Normal mode has **no login**." in readme
