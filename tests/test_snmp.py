@@ -1,5 +1,4 @@
-"""SNMP v2c polling: the BER codec, the client against a local simulator,
-storage, the device page, and demo mode staying read-only."""
+"""Tests for SNMP polling, its codec, and the local simulator."""
 
 import re
 import socket

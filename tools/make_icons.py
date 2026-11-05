@@ -1,11 +1,4 @@
-"""Draw the app icons as PNG files with the standard library only.
-
-    .\\.venv\\Scripts\\python.exe -m tools.make_icons
-
-Writes app/static/img/icon-192.png and icon-512.png: a mint ring and a
-mint Z on the page colour of the terminal theme. Everything sits inside
-the middle 80%, so Android can crop the icon to a circle (maskable).
-"""
+"""Draw the app's PNG icons (python -m tools.make_icons)."""
 
 import struct
 import zlib

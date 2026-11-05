@@ -1,8 +1,4 @@
-"""Read-only demo mode.
-
-Demo mode is for a public copy. These tests check that it loads labelled
-sample data, refuses every change, and never pings or opens a socket.
-"""
+"""Tests for the read-only demo mode."""
 
 import socket
 import sqlite3

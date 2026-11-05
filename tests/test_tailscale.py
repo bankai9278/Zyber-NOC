@@ -1,5 +1,4 @@
-"""Tailscale devices: their 100.x and fd7a:115c:a1e0:: addresses are single
-devices and can be saved; their MagicDNS hostnames are still refused."""
+"""Tests that Tailscale addresses are accepted and their hostnames refused."""
 
 import pytest
 

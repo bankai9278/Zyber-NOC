@@ -1,10 +1,4 @@
-"""SQLite storage for authorized devices and monitoring history.
-
-This module is the only place that talks to the database. Routes and,
-later, the connectivity checker call these functions instead of writing
-SQL themselves. Every value is passed with a ``?`` placeholder so a
-device name or error message cannot change the query.
-"""
+"""SQLite storage for devices and monitoring results, using parameterized queries."""
 
 import sqlite3
 from contextlib import contextmanager

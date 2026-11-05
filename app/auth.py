@@ -1,19 +1,4 @@
-"""Sign-in for one admin user.
-
-Sign-in is on when the website runs in hosted mode or when
-ZYBER_ADMIN_PASSWORD_HASH is set. On the local app with neither, the PC
-owner is the only visitor (127.0.0.1), so everything works without a
-password, as before. Demo mode never signs anyone in; it is read-only.
-
-The password is never stored. The environment variable holds a
-werkzeug.security hash, made with:
-
-    .\\.venv\\Scripts\\python.exe -m tools.zyber_secrets password-hash
-
-Signed out, visitors can read the pages, but addresses and descriptions
-are hidden, and adding, editing, deleting, checks, and CSV downloads
-need sign-in.
-"""
+"""Admin sign-in, the sign-in rate limit, and hiding private details when signed out."""
 
 import hashlib
 import hmac

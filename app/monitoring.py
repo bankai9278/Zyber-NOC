@@ -1,17 +1,4 @@
-"""Windows connectivity checks for devices saved in the inventory.
-
-This module pings one IP address at a time. It does not scan a subnet,
-accept a hostname, or send the command through a shell.
-
-Windows ping is different from the ping command on Linux and macOS.
-Windows uses ``-n`` for the number of attempts and ``-w`` for the
-per-reply wait time in milliseconds. Linux uses ``-c`` for the count
-and ``-W`` for a timeout in seconds. Windows reports a reply as
-``time=12ms`` or ``time<1ms``, and a dead host as ``Request timed out``
-or ``Destination host unreachable``. The exit code alone is not enough,
-because an unreachable message can still come back with a failure code
-or with confusing packet statistics.
-"""
+"""Windows ping and TCP checks for saved devices."""
 
 import os
 import re

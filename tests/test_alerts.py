@@ -1,8 +1,4 @@
-"""Outage alerts: off by default, local log first, optional email, never in demo mode.
-
-No test reaches a real mail server. smtplib.SMTP is replaced with a stand-in
-that records what would have been sent, or with one that fails the test.
-"""
+"""Tests for outage alerts."""
 
 import re
 import smtplib

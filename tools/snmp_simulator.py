@@ -1,21 +1,4 @@
-"""A tiny SNMP v2c agent for trying the SNMP poll without a real switch.
-
-It answers GetNext and Get for the IF-MIB interface table with four made-up
-interfaces whose traffic counters grow at a steady rate. It listens on
-127.0.0.1 only and ignores requests with the wrong community string.
-
-Run it in one window:
-
-    .\\.venv\\Scripts\\python.exe tools\\snmp_simulator.py
-
-Then start the app in another window with the simulator's port:
-
-    $env:ZYBER_SNMP_PORT = "1161"
-    .\\.venv\\Scripts\\python.exe run.py
-
-Add a device with IP 127.0.0.1 and press Poll SNMP twice, at least 15 seconds
-apart, to see traffic rates. Standard library only.
-"""
+"""A small local SNMP agent for trying Poll SNMP without a switch."""
 
 import argparse
 import socket

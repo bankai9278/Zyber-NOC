@@ -1,13 +1,4 @@
-"""Read interface status and traffic counters over SNMP v2c.
-
-Standard library only: SNMP messages are small BER-encoded packets sent over
-UDP, so this module encodes and decodes them by hand instead of adding a
-package. It only reads (GetNext). It never writes to a device.
-
-Only a saved device's validated IP address is contacted, on the configured
-SNMP port (161 unless ZYBER_SNMP_PORT says otherwise, which is how the local
-simulator in tools/snmp_simulator.py is reached).
-"""
+"""Read-only SNMP v2c polling of interface status and traffic counters."""
 
 import os
 import socket

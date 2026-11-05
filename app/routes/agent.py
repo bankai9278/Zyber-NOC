@@ -1,10 +1,4 @@
-"""JSON API for the home agent (agent/agent.py).
-
-The hosted website cannot reach devices on the home network, so a small
-agent on the home PC checks the saved devices and posts the results here.
-Every request must send the shared key in the X-Zyber-Agent-Key header.
-The API is off when ZYBER_AGENT_KEY is not set, and in demo mode.
-"""
+"""JSON API for the home agent, protected by the agent key."""
 
 import hmac
 

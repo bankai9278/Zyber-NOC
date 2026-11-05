@@ -1,8 +1,4 @@
-"""Public-facing pages: the landing page, reports, and about.
-
-Every number on these pages is read from saved rows in the database.
-Nothing here runs a check or writes to the database.
-"""
+"""Home, reports, and about pages, plus the web app manifest and service worker."""
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path

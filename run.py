@@ -1,8 +1,4 @@
-"""Start the monitoring app on this computer.
-
-Run this file with the virtual environment's Python. It is the only
-file you need to execute to open the starter app.
-"""
+"""Start the app on this computer."""
 
 from app import create_app
 

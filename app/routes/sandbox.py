@@ -1,12 +1,4 @@
-"""The "Try it" sandbox at /try.
-
-Visitors can add, edit, delete, and pretend-check made-up devices to see
-how the console works. Everything lives in that visitor's own signed
-session cookie, never in the database, so it cannot mix with the real
-inventory. It resets after SANDBOX_TTL_SECONDS, holds at most
-SANDBOX_MAX_DEVICES devices, and never pings or opens a connection:
-every status here is drawn at random.
-"""
+"""The /try sandbox: pretend devices kept in the visitor's session, never checked."""
 
 import random
 import time

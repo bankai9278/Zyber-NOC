@@ -1,9 +1,4 @@
-"""Agent API and hosted mode.
-
-The hosted website never pings. A home agent fetches the saved devices and
-posts results with a shared key. These tests check the key, the limits,
-the validation of every field, and that hosted mode never runs a check.
-"""
+"""Tests for the agent API and hosted mode."""
 
 import json
 import socket

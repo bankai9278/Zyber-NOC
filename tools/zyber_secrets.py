@@ -1,15 +1,4 @@
-"""Make the two secrets a hosted copy needs.
-
-Run from the project folder with the virtual-environment Python:
-
-    .\\.venv\\Scripts\\python.exe -m tools.zyber_secrets agent-key
-    .\\.venv\\Scripts\\python.exe -m tools.zyber_secrets password-hash
-
-agent-key prints a random key for ZYBER_AGENT_KEY (the website) and
-agent_key (agent/config.json). password-hash asks for a password twice,
-without showing it, and prints the hash for ZYBER_ADMIN_PASSWORD_HASH.
-The password itself is never printed or saved.
-"""
+"""Make the agent key and the admin password hash (python -m tools.zyber_secrets)."""
 
 import argparse
 import getpass

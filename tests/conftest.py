@@ -1,8 +1,4 @@
-"""Shared test setup.
-
-The client fixture builds the Flask app against a temporary SQLite file.
-Tests can request pages without starting a real server or opening a port.
-"""
+"""Shared fixtures: an app on a temporary database and its test client."""
 
 import pytest
 

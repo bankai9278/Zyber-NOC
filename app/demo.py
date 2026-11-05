@@ -1,12 +1,4 @@
-"""Sample data for the read-only demo.
-
-Demo mode is for a public copy of the app. It never pings or opens a TCP
-connection. Instead, this module writes a fresh SQLite file of made-up
-devices and checks so every page has something to show. Every device
-name starts with "Sample" and uses a documentation IP range
-(192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24) that is never routed on
-the internet. The pages label all of it as sample data.
-"""
+"""Build the sample database for the read-only demo."""
 
 import os
 import random

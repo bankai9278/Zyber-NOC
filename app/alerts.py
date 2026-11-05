@@ -1,11 +1,4 @@
-"""Outage alerts for saved devices.
-
-An alert is raised when a saved check changes a device's status to offline
-or error, which is the same rule the dashboard uses for an incident. Alerts
-are off by default. When they are on, each alert is written as one line to
-a local log file. Email is optional and uses Python's own smtplib, so no
-new package is needed. Demo mode never logs or sends anything.
-"""
+"""Outage alerts: a local log line and optional SMTP email."""
 
 import smtplib
 import threading

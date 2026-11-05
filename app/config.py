@@ -1,9 +1,4 @@
-"""Local settings for the monitoring app.
-
-Keep values that change between computers or environments here.
-Routes and services should read settings from the Flask app config
-instead of hard-coding host names, ports, or file paths.
-"""
+"""App settings, with values that differ between computers read from the environment."""
 
 import os
 from datetime import timedelta

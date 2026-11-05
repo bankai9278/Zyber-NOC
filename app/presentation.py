@@ -1,8 +1,4 @@
-"""Labels for values that are already stored in the database.
-
-These functions only format saved results. They do not decide whether a
-device is online. Timestamps are stored in UTC and shown in Toronto time.
-"""
+"""Display labels, Toronto times, the topology layout, and charts from stored values."""
 
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path

@@ -1,7 +1,4 @@
-"""Unit tests for the Windows connectivity check.
-
-subprocess.run is replaced for every test. None of these tests send a ping.
-"""
+"""Tests for the Windows ping and TCP checks."""
 
 import subprocess
 import threading

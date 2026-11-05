@@ -1,23 +1,4 @@
-"""Home agent for a hosted copy of Zyber NOC.
-
-The hosted website cannot reach devices on the home network. This script
-runs on the home PC, asks the website which saved devices to check,
-checks them with the same ping and TCP code as the local app
-(app/monitoring.py), and posts the results back in one batch.
-
-It runs once and exits. Windows Task Scheduler starts it every 5 minutes
-(see the README). Run it with the project's virtual-environment Python:
-
-    .\\.venv\\Scripts\\python.exe agent\\agent.py
-
-It reads the website address and the agent key from agent/config.json,
-which git ignores. Copy agent/config.example.json to start.
-
-The agent does not trust the website. Every address is validated again
-here with the inventory's own rules, only the allowed TCP ports are
-tried, at most 200 devices are checked per run, and redirects are not
-followed, so the key is only ever sent to the configured address.
-"""
+"""Home agent: check the saved devices and post the results to the hosted site."""
 
 import argparse
 import json

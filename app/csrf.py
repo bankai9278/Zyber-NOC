@@ -1,9 +1,4 @@
-"""CSRF checks for form submissions.
-
-Flask stores a random token in the signed session cookie. A form must
-send that same token back. Another website cannot read the cookie, so it
-cannot submit a valid form to this app.
-"""
+"""CSRF tokens for form submissions."""
 
 import secrets
 

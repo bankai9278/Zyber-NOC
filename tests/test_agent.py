@@ -1,8 +1,4 @@
-"""Home agent (agent/agent.py).
-
-The agent is tested against the real Flask app through the test client,
-with ping and TCP replaced by stand-ins, so no packet leaves this PC.
-"""
+"""Tests for the home agent."""
 
 import ast
 import json
