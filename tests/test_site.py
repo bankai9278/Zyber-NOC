@@ -63,6 +63,18 @@ def test_about_page_tells_the_owner_story(client):
     assert "https://www.linkedin.com/in/yash-oza-it/" in html
 
 
+def test_about_page_is_honest_about_how_it_was_built(client):
+    html = client.get("/about").get_data(as_text=True)
+    assert "CST Networking, 2025" in html
+    assert "Built with help from AI coding tools. I planned the features, tested them, and can explain how each part works." in html
+    assert "on my own" not in html
+    # Built features are no longer listed as plans.
+    assert "Add SNMP polling." not in html
+    assert "Host a read-only demo." not in html
+    # The note to add personal sentences is a template comment, never sent to visitors.
+    assert "Yash: add" not in html
+
+
 def test_about_page_phrases_certifications_as_goals(client):
     html = client.get("/about").get_data(as_text=True)
     assert "Work toward certifications such as the CCNA." in html
