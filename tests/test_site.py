@@ -65,7 +65,7 @@ def test_about_page_tells_the_owner_story(client):
 
 def test_about_page_is_honest_about_how_it_was_built(client):
     html = client.get("/about").get_data(as_text=True)
-    assert "CST Networking, 2025" in html
+    assert "Computer Systems Technician – Networking, 2025" in html
     assert "Built with help from AI coding tools. I planned the features, tested them, and can explain how each part works." in html
     assert "on my own" not in html
     # Built features are no longer listed as plans.
