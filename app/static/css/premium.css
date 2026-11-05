@@ -666,3 +666,49 @@ h1::before { font-family: var(--font-mono); font-weight: 600; }
   h1 { font-size: 1.9rem; }
   .section-title-lg { font-size: clamp(1.8rem, 2.9vw, 2.7rem); }
 }
+
+/* ---------- Phone tab bar ----------
+   Phones get a fixed bar at the bottom instead of the wrapped top menu.
+   Desktop keeps the top menu and never shows this bar. */
+.tab-bar { display: none; }
+@media (max-width: 42rem) {
+  .site-header nav { display: none; }
+  .brand-tagline { display: none; }
+  .site-header .header-inner,
+  html.is-scrolled .site-header .header-inner,
+  .page-site .header-inner,
+  .page-home .header-inner,
+  html.is-scrolled .page-home .header-inner { padding-top: .6rem; padding-bottom: .6rem; }
+  .brand-lockup { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; gap: .75rem; }
+  body { padding-bottom: calc(4.25rem + env(safe-area-inset-bottom)); }
+  .tour { bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  .tab-bar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    padding: .25rem .25rem calc(.25rem + env(safe-area-inset-bottom));
+    background: rgba(7, 9, 10, .96); border-top: 1px solid var(--border);
+  }
+  .tab-bar > a, .tab-more > summary {
+    flex: 1 1 0; min-width: 0; min-height: 3.25rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+    color: var(--muted); font-family: var(--font-mono); font-size: .66rem; text-decoration: none; border-radius: 8px; cursor: pointer;
+  }
+  .tab-more { flex: 1 1 0; min-width: 0; display: flex; }
+  .tab-more > summary { list-style: none; width: 100%; }
+  .tab-more > summary::-webkit-details-marker { display: none; }
+  .tab-bar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .tab-more > summary svg circle { fill: currentColor; stroke: none; }
+  .tab-bar > a[aria-current="page"], .tab-more.is-current > summary, .tab-more[open] > summary { color: var(--mint); background: rgba(62, 240, 165, .08); }
+  .tab-bar > a:focus-visible, .tab-more > summary:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+  .tab-sheet {
+    position: fixed; right: .5rem; bottom: calc(4.5rem + env(safe-area-inset-bottom)); min-width: 12rem;
+    display: flex; flex-direction: column; padding: .4rem; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel); box-shadow: 0 12px 30px rgba(0, 0, 0, .5);
+  }
+  .tab-sheet a, .tab-sheet button {
+    display: block; width: 100%; min-height: 3rem; padding: .8rem 1rem; text-align: left; border: 0; border-radius: 6px;
+    background: none; color: var(--text); font-family: var(--font-mono); font-size: .9rem; text-decoration: none;
+  }
+  .tab-sheet a[aria-current="page"] { color: var(--mint); }
+  .tab-sheet a:hover, .tab-sheet button:hover { background: var(--hover); }
+  .tab-sheet form { margin: 0; }
+}
+

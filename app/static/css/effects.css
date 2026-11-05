@@ -145,6 +145,20 @@ html.fx-story .story-step.is-active { border-color: rgba(62, 240, 165, .4); }
   to { transform: scale(1.6); opacity: 0; }
 }
 
+/* ---------- Live light next to ZYBER NOC ----------
+   Green "live" when the newest saved result is recent, grey otherwise. */
+.live-light {
+  display: inline-flex; align-items: center; gap: .4rem; margin: 0;
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .04em; color: var(--muted); white-space: nowrap;
+}
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--unknown); flex: none; }
+.live-light.live-live { color: var(--mint); }
+.live-light.live-live .live-dot { background: var(--online); box-shadow: 0 0 0 3px rgba(62, 240, 138, .18); animation: live-breathe 2.4s ease-in-out infinite; }
+@keyframes live-breathe {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(62, 240, 138, .25); }
+  50% { box-shadow: 0 0 0 5px rgba(62, 240, 138, 0); }
+}
+
 /* ---------- Hero network field (canvas, drawn by effects.js) ---------- */
 .hero-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: none; opacity: .7; }
 html.fx-field .hero-field { display: block; }
@@ -226,4 +240,5 @@ html.fx-lite .fx-texture { background: repeating-linear-gradient(to bottom, rgba
   html:not(.motion-on) :is(.hero-field, .fx-cursor, .story-packet) { display: none !important; }
   html:not(.motion-on) .topology-svg .live-ring { display: none; animation: none !important; }
   html:not(.motion-on) .status.live-ping::after { display: none; animation: none !important; }
+  html:not(.motion-on) .live-light.live-live .live-dot { animation: none; }
 }

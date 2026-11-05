@@ -46,6 +46,8 @@ The public site runs the same code in **hosted mode**. The website itself never 
 - When a device and its parent are both offline, the badge says **Unreachable via** the parent. A child's incident is marked as caused by the parent outage when the parent was already down.
 - Device page: the last 20 checks, a response-time chart (median line, min-to-max band, points coloured by packet loss), jitter and packet loss from the latest ping, and a 90-day status bar. Each dashboard row has a 30-day bar.
 - The dashboard and the topology map keep themselves current. While the page is open and visible, they check the saved results every 45 seconds (the same public JSON, so no addresses when signed out). When a newer result has arrived, counts, rows, colours, and links update in place and each device sends out a short sonar ring in its status colour; with reduced motion they just update. Demo mode does not poll.
+- A light next to ZYBER NOC says **live** (green, with how long ago) when the newest saved result is under 10 minutes old, and **agent offline** (grey) when it isn't; the demo says **demo**. Pages that keep themselves live update it as they go.
+- On phones, the top menu is replaced by a bottom tab bar (Home, Dashboard, Map, Reports, More) with thumb-sized buttons; More opens About, Try it, and Sign in or out. It works without JavaScript, leaves room for the phone's home bar in the installed app, and computers keep the normal top menu.
 - **Refresh status** reloads saved results without pinging again. **Download CSV** exports a device's full history in UTC.
 - Times show in America/Toronto; the database stores UTC. `/health` returns a small JSON health check.
 

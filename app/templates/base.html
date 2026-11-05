@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Zyber NOC{% endblock %}</title>
   <link rel="preload" href="{{ url_for('static', filename='fonts/space-grotesk-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -25,6 +25,7 @@
     <div class="header-inner">
       <div class="brand-lockup">
         <a class="site-title" href="{{ url_for('site.home') }}"><img class="brand-logo" src="{{ url_for('static', filename='img/logo-yo.svg') }}" width="24" height="24" alt="Yash Oza logo"><span class="brand-word"><span class="brand-mark">ZYBER</span><span class="brand-noc">NOC</span></span></a>
+        <p class="live-light live-{{ live_light.state }}" data-live-light data-at="{{ live_light.at }}" data-window="{{ live_light.window }}" data-offline-label="{{ live_light.offline_label }}"><span class="live-dot" aria-hidden="true"></span><span class="visually-hidden">Status: </span><span data-live-label>{{ live_light.label }}</span></p>
         {% block brand_tagline %}{% endblock %}
       </div>
       <nav aria-label="Primary">
@@ -95,6 +96,46 @@
     </div>
     <p class="footer-base mono">{% if demo_mode %}sample data &middot; Python &middot; Flask &middot; no checks{% elif hosted_mode %}hosted &middot; Python &middot; Flask &middot; home agent{% else %}127.0.0.1:5000 &middot; Python &middot; Flask &middot; Windows ping{% endif %}</p>
   </footer>
+  {% set more_endpoints = ['site.about', 'sandbox.index', 'sandbox.edit_device', 'auth.login', 'devices.new_device'] %}
+  <nav class="tab-bar" aria-label="Primary">
+    <a href="{{ url_for('site.home') }}" {% if request.endpoint == 'site.home' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="{{ url_for('devices.inventory') }}" {% if request.endpoint in ('devices.inventory', 'devices.device_detail') %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Dashboard</span>
+    </a>
+    <a href="{{ url_for('devices.topology') }}" {% if request.endpoint == 'devices.topology' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5"/></svg>
+      <span>Map</span>
+    </a>
+    <a href="{{ url_for('site.reports') }}" {% if request.endpoint == 'site.reports' %}aria-current="page"{% endif %}>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      <span>Reports</span>
+    </a>
+    <details class="tab-more{% if request.endpoint in more_endpoints %} is-current{% endif %}">
+      <summary>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+        <span>More</span>
+      </summary>
+      <div class="tab-sheet">
+        <a href="{{ url_for('site.about') }}" {% if request.endpoint == 'site.about' %}aria-current="page"{% endif %}>About</a>
+        <a href="{{ url_for('sandbox.index') }}" {% if request.blueprint == 'sandbox' %}aria-current="page"{% endif %}>Try it</a>
+        {% if can_edit %}
+        <a href="{{ url_for('devices.new_device') }}" {% if request.endpoint == 'devices.new_device' %}aria-current="page"{% endif %}>Add device</a>
+        {% endif %}
+        {% if signed_in %}
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit">Sign out</button>
+        </form>
+        {% elif auth_on %}
+        <a href="{{ url_for('auth.login') }}" {% if request.endpoint == 'auth.login' %}aria-current="page"{% endif %}>Sign in</a>
+        {% endif %}
+      </div>
+    </details>
+  </nav>
   {% block scripts %}{% endblock %}
   <script src="{{ url_for('static', filename='js/premium.js') }}"></script>
   <script src="{{ url_for('static', filename='js/effects.js') }}"></script>

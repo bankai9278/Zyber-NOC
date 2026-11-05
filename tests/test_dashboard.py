@@ -299,7 +299,7 @@ def test_devices_can_be_grouped_by_location_or_vlan_with_filters(client, app):
     filtered = client.get("/devices?group=vlan&location=Floor%203").get_data(as_text=True)
     payload = client.get("/api/dashboard?group=location").get_json()
 
-    assert "<summary" not in flat
+    assert '<details class="device-group"' not in flat
     assert 'for="group-by"' in flat
     assert by_location.index("Floor 3 - 2 devices - 1 online, 1 unknown") < by_location.index(
         "Lab - 1 device - 1 online"

@@ -12,6 +12,7 @@ from flask import Blueprint, abort, current_app, render_template, send_from_dire
 from app.auth import can_view_private, hide_private
 from app.database import (
     DatabaseError,
+    latest_result_time,
     get_device_overview,
     get_monitoring_history,
     list_incidents,
@@ -36,7 +37,37 @@ REPORT_DAYS = 30
 
 @bp.app_context_processor
 def inject_site_links():
-    return {"github_url": GITHUB_URL, "linkedin_url": LINKEDIN_URL}
+    return {"github_url": GITHUB_URL, "linkedin_url": LINKEDIN_URL, "live_light": _live_light()}
+
+
+def live_light_state(config, latest, now=None):
+    """What the header light says: live, agent offline, idle, or demo.
+
+    Built only from the time of the newest saved result, which is public.
+    """
+    window = config.get("LIVE_WINDOW_MINUTES", 10)
+    offline_label = "agent offline" if config.get("HOSTED_MODE") else "no recent checks"
+    light = {"state": "offline", "label": offline_label, "at": latest or "", "window": window, "offline_label": offline_label}
+    if config.get("DEMO_MODE"):
+        return {**light, "state": "demo", "label": "demo", "at": ""}
+    moment = _parse(latest) if latest else None
+    if moment is None:
+        return light
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    seconds = max(0, int(((now or datetime.now(timezone.utc)) - moment).total_seconds()))
+    if seconds <= window * 60:
+        age = "just now" if seconds < 60 else _ago_label(seconds)
+        return {**light, "state": "live", "label": f"live \u00b7 {age}"}
+    return light
+
+
+def _live_light():
+    try:
+        latest = latest_result_time(current_app.config["DATABASE_PATH"])
+    except DatabaseError:
+        latest = None
+    return live_light_state(current_app.config, latest)
 
 
 @bp.get("/")

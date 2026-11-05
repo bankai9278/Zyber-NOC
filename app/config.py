@@ -109,6 +109,8 @@ class Config:
     # The /try sandbox: pretend devices kept in the visitor's own session cookie.
     SANDBOX_MAX_DEVICES = 8
     SANDBOX_TTL_SECONDS = 60 * 60
+    # The header light says "live" when the newest saved result is this recent.
+    LIVE_WINDOW_MINUTES = 10
 
 
 class TestConfig(Config):

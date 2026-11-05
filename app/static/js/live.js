@@ -7,6 +7,7 @@
    No HTML is injected; elements are built with createElementNS. */
 (function () {
   var root = document.documentElement;
+  var light = document.querySelector("[data-live-light]");
   var source = document.querySelector("[data-live-url]");
   if (!source || !window.fetch) return;
 
@@ -26,7 +27,23 @@
 
   function each(list, fn) { Array.prototype.forEach.call(list, fn); }
 
+  /* The header light: live while the newest result is inside the window. */
+  function paintLight() {
+    if (!light || light.classList.contains("live-demo") || !latest) return;
+    var seconds = Math.max(0, (Date.now() - Date.parse(latest)) / 1000);
+    var windowMinutes = Number(light.getAttribute("data-window")) || 10;
+    var isLive = seconds <= windowMinutes * 60;
+    var minutes = Math.floor(seconds / 60);
+    var age = seconds < 60 ? "just now" : minutes + (minutes === 1 ? " minute ago" : " minutes ago");
+    light.classList.toggle("live-live", isLive);
+    light.classList.toggle("live-offline", !isLive);
+    var label = light.querySelector("[data-live-label]");
+    var text = isLive ? "live \u00b7 " + age : light.getAttribute("data-offline-label");
+    if (label && label.textContent !== text) label.textContent = text;
+  }
+
   function schedule() {
+    paintLight();
     clearTimeout(timer);
     if (!document.hidden) timer = setTimeout(poll, POLL_MS);
   }

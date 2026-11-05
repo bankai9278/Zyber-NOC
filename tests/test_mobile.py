@@ -35,7 +35,7 @@ def test_every_page_sets_the_phone_viewport(demo_client, path):
     response = demo_client.get(path)
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert '<meta name="viewport" content="width=device-width, initial-scale=1">' in html
+    assert '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' in html
 
 
 def test_phone_css_is_the_last_section_of_premium_css():
