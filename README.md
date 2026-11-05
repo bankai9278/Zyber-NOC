@@ -26,7 +26,7 @@ The screenshots come from demo mode, so every device and number in them is sampl
 
 ## Why I built it
 
-I finished the Computer Systems Technician – Networking program at Mohawk College in 2025. In school I designed networks on paper, like a 7-floor office network for my team's Skyline Paralegal project, but I never got to see how a network is actually watched day to day. I wanted to understand what a NOC tech looks at, so I built a small version for my own home network.
+I finished the Computer Systems Technician – Networking program at Mohawk College in 2025. In college I designed networks on paper, like a 7-floor office network for my team's Skyline Paralegal project, but I never got to see how a network is actually watched day to day. I wanted to understand what a NOC tech looks at, so I built a small version for my own home network.
 
 ## What I learned
 
